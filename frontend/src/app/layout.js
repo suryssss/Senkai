@@ -13,7 +13,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata = {
-  title: "StructFlow - Architecture Risk Analyzer",
+  title: "Senkai - Architecture Risk Analyzer",
   description: "Visual system design intelligence tool for analyzing backend architecture risks",
 };
 

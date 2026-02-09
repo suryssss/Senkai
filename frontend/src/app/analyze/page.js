@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useMemo, useRef } from "react";
+import { useState, useCallback, useMemo, useRef, useEffect } from "react";
 import { useNodesState, useEdgesState, addEdge } from "@xyflow/react";
 import axios from "axios";
 
@@ -51,6 +51,70 @@ export default function AnalyzePage() {
     const [reactFlowInstance, setReactFlowInstance] = useState(null);
     const [isSidebarOpen, setIsSidebarOpen] = useState(true);
     const isAnalyzingRef = useRef(false);
+    const historyRef = useRef([{ nodes: initialNodes, edges: initialEdges }]);
+    const historyIndexRef = useRef(0);
+    const isUndoRedoRef = useRef(false);
+
+    // Save state to history
+    const saveToHistory = useCallback((newNodes, newEdges) => {
+        if (isUndoRedoRef.current) {
+            isUndoRedoRef.current = false;
+            return;
+        }
+        const newHistory = historyRef.current.slice(0, historyIndexRef.current + 1);
+        newHistory.push({ nodes: JSON.parse(JSON.stringify(newNodes)), edges: JSON.parse(JSON.stringify(newEdges)) });
+        if (newHistory.length > 50) newHistory.shift();
+        historyRef.current = newHistory;
+        historyIndexRef.current = newHistory.length - 1;
+    }, []);
+
+    // Undo function
+    const handleUndo = useCallback(() => {
+        if (historyIndexRef.current > 0) {
+            isUndoRedoRef.current = true;
+            historyIndexRef.current -= 1;
+            const prevState = historyRef.current[historyIndexRef.current];
+            setNodes(prevState.nodes);
+            setEdges(prevState.edges);
+            setToast({ message: "Undo", type: "info" });
+        }
+    }, [setNodes, setEdges]);
+
+    // Redo function
+    const handleRedo = useCallback(() => {
+        if (historyIndexRef.current < historyRef.current.length - 1) {
+            isUndoRedoRef.current = true;
+            historyIndexRef.current += 1;
+            const nextState = historyRef.current[historyIndexRef.current];
+            setNodes(nextState.nodes);
+            setEdges(nextState.edges);
+            setToast({ message: "Redo", type: "info" });
+        }
+    }, [setNodes, setEdges]);
+    useEffect(() => {
+        const handleKeyDown = (e) => {
+            if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) {
+                e.preventDefault();
+                handleUndo();
+            }
+            if ((e.ctrlKey || e.metaKey) && (e.key === 'y' || (e.key === 'z' && e.shiftKey))) {
+                e.preventDefault();
+                handleRedo();
+            }
+        };
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [handleUndo, handleRedo]);
+    const saveTimeoutRef = useRef(null);
+    useEffect(() => {
+        if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
+        saveTimeoutRef.current = setTimeout(() => {
+            if (!isUndoRedoRef.current) {
+                saveToHistory(nodes, edges);
+            }
+        }, 300);
+        return () => clearTimeout(saveTimeoutRef.current);
+    }, [nodes, edges, saveToHistory]);
 
     const formatPayload = useMemo(() => ({
         nodes: nodes.map((n) => ({ id: n.id, capacity: Number(n.data.capacity) || 0, load: Number(n.data.load) || 0 })),
@@ -378,7 +442,7 @@ export default function AnalyzePage() {
     }, [analysisResults]);
 
     return (
-        <div style={{ display: "flex", flexDirection: "column", height: "100vh", background: "var(--bg-primary)", transition: "background 0.3s ease" }}>
+        <div className="analyze-page" style={{ display: "flex", flexDirection: "column", height: "100vh", background: "var(--bg-primary)", transition: "background 0.3s ease" }}>
             <Toolbar
                 onAddService={handleAddService}
                 onSave={handleSave}
