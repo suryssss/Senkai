@@ -1,80 +1,31 @@
-function buildGraph(nodes, edges, removedNode = null) {
-    const graph = {}
-
-    nodes.forEach(node => {
-        if (node.id !== removedNode) {
-            graph[node.id] = []
-        }
-    })
-
-    edges.forEach(edges => {
-        if (
-            edges.source != removedNode &&
-            edges.target != removedNode &&
-            graph[edges.source]
-        ) {
-            graph[edges.source].push(edges.target)
-        }
-    })
-    return graph
-}
-
-function dfs(start, graph, visited) {
-    if (!graph[start]) return;
-
-    visited.add(start)
-
-    for (let neighbour of graph[start]) {
-        if (!visited.has(neighbour)) {
-            dfs(neighbour, graph, visited)
-        }
-    }
-}
-
+const { buildGraphExcluding, dfs } = require('./graphUtils');
 
 function detectSpof(nodes, edges) {
-    if (!nodes.length) return []
+    if (!nodes.length) return [];
 
-    const startNode = nodes[0].id //assuming first node is entry
+    const startNode = nodes[0].id;
+    const totalNodes = nodes.length;
 
-    const totalNodes = nodes.length
+    return nodes.map(node => {
+        const removed = node.id;
 
-    const results = []
-
-    nodes.forEach(node => {
-        const removed = node.id
-
-        const graph = buildGraph(nodes, edges, removed)
-
-
-        if (removed == startNode) {
-            results.push({
-                service: removed,
-                affected: totalNodes,
-                risk: "critical"
-            })
-            return
+        if (removed === startNode) {
+            return { service: removed, affectedServices: totalNodes - 1, risk: "critical" };
         }
 
+        const graph = buildGraphExcluding(nodes, edges, removed);
+        const visited = new Set();
+        dfs(startNode, graph, visited);
 
-        const visited = new Set()
-        dfs(startNode, graph, visited)
+        const reachable = visited.size;
+        const affected = totalNodes - reachable - 1;
 
-        const reachable = visited.size
-        const affected = totalNodes - reachable
+        let risk = "low";
+        if (affected > totalNodes * 0.5) risk = "high";
+        if (affected >= totalNodes - 2) risk = "critical";
 
-        let risk = "low"
-        if (affected > totalNodes * 0.5) risk = 'high'
-        if (affected === totalNodes - 1) risk = "critical"
-
-        results.push({
-            service: removed,
-            affectedServices: affected,
-            risk
-        })
-    })
-
-    return results
+        return { service: removed, affectedServices: affected, risk };
+    });
 }
 
 module.exports = { detectSpof };

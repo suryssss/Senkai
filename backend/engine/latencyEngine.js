@@ -1,40 +1,21 @@
-function buildGraphWithLatency(edges) {
-    const graph = {};
-
-    edges.forEach(edge => {
-        if (!graph[edge.source]) {
-            graph[edge.source] = [];
-        }
-
-        graph[edge.source].push({
-            node: edge.target,
-            latency: Number(edge.latency) || 0
-        });
-    });
-
-    return graph;
-}
+const { buildGraphWithLatency } = require('./graphUtils');
 
 function dfsLatency(node, graph, currentLatency, visited) {
+    if (visited.has(node)) return currentLatency;
+
     visited.add(node);
-
     let maxLatency = currentLatency;
-
     const neighbors = graph[node] || [];
 
-    for (let neighbor of neighbors) {
-        if (!visited.has(neighbor.node)) {
-            const total = dfsLatency(
-                neighbor.node,
-                graph,
-                currentLatency + neighbor.latency,
-                new Set(visited)
-            );
+    for (const neighbor of neighbors) {
+        const total = dfsLatency(
+            neighbor.target,
+            graph,
+            currentLatency + neighbor.latency,
+            new Set(visited)
+        );
 
-            if (total > maxLatency) {
-                maxLatency = total;
-            }
-        }
+        if (total > maxLatency) maxLatency = total;
     }
 
     return maxLatency;
@@ -43,10 +24,11 @@ function dfsLatency(node, graph, currentLatency, visited) {
 function detectLatencyRisk(nodes, edges) {
     if (!nodes.length) return { totalLatency: 0, risk: "low" };
 
-    const startNode = nodes[0].id; // assume first node is entry
-    const graph = buildGraphWithLatency(edges);
+    const startNode = "api-gateway";
+    const entryNode = nodes.find(n => n.id === startNode) ? startNode : nodes[0].id;
 
-    const totalLatency = dfsLatency(startNode, graph, 0, new Set());
+    const graph = buildGraphWithLatency(edges);
+    const totalLatency = dfsLatency(entryNode, graph, 0, new Set());
 
     let risk = "low";
     if (totalLatency > 200) risk = "high";

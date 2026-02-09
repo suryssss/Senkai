@@ -1,21 +1,17 @@
 function calculateRiskScore(bottlenecks, spof, latency) {
     let score = 0;
-
-    // Bottleneck scoring 
     let bottleneckRisk = 0;
     bottlenecks.forEach(b => {
-        if (b.status === "danger") bottleneckRisk += 15;
+        if (b.status === "crashed") bottleneckRisk += 30;
+        else if (b.status === "danger") bottleneckRisk += 15;
         else if (b.status === "warning") bottleneckRisk += 7;
     });
 
-    //SPOF scoring 
     let spofRisk = 0;
     spof.forEach(s => {
         if (s.risk === "critical") spofRisk += 20;
         else if (s.risk === "high") spofRisk += 10;
     });
-
-    // Latency scoring 
     let latencyRisk = 0;
     if (latency.risk === "high") latencyRisk = 25;
     else if (latency.risk === "warning") latencyRisk = 15;
