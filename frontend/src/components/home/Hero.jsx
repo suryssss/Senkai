@@ -154,7 +154,7 @@ export default function Hero() {
                     </span>
                 </div>
                 <h1 style={{
-                    fontSize: "clamp(48px, 9vw, 120px)",
+                    fontSize: "clamp(40px, 7vw, 96px)",
                     fontWeight: "500",
                     lineHeight: 0.95,
                     color: "#0a0a0a",
