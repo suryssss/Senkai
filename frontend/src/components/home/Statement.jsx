@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { gsap } from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 
@@ -12,6 +12,18 @@ export default function Statement() {
     const sectionRef = useRef(null);
     const containerRef = useRef(null);
     const wordsRef = useRef([]);
+    const [isMobile, setIsMobile] = useState(false);
+    const [isTablet, setIsTablet] = useState(false);
+
+    useEffect(() => {
+        const handleResize = () => {
+            setIsMobile(window.innerWidth < 768);
+            setIsTablet(window.innerWidth >= 768 && window.innerWidth < 1024);
+        };
+        handleResize();
+        window.addEventListener("resize", handleResize);
+        return () => window.removeEventListener("resize", handleResize);
+    }, []);
 
     useEffect(() => {
         if (!sectionRef.current) return;
@@ -73,24 +85,23 @@ export default function Statement() {
         <section
             ref={sectionRef}
             style={{
-                minHeight: "80vh",
+                minHeight: isMobile ? "60vh" : isTablet ? "70vh" : "80vh",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
-                padding: "100px 10vw",
+                padding: isMobile ? "60px 20px" : isTablet ? "80px 40px" : "100px 80px",
                 position: "relative",
                 background: "#ffffff",
                 overflow: "hidden",
             }}
         >
-            {/* Soft Radial Gradient Glow - "Vercel/Stripe style" */}
             <div style={{
                 position: "absolute",
                 top: "50%",
                 left: "50%",
                 transform: "translate(-50%, -50%)",
-                width: "80%",
-                height: "80%",
+                width: isMobile ? "100%" : isTablet ? "90%" : "80%",
+                height: isMobile ? "60%" : "80%",
                 maxWidth: "800px",
                 maxHeight: "400px",
                 background: "radial-gradient(ellipse at center, rgba(124, 58, 237, 0.15) 0%, rgba(59, 130, 246, 0.05) 40%, transparent 70%)",
@@ -104,7 +115,7 @@ export default function Statement() {
                 position: "absolute",
                 inset: 0,
                 backgroundImage: "radial-gradient(#e5e5e5 1px, transparent 1px)",
-                backgroundSize: "32px 32px",
+                backgroundSize: isMobile ? "24px 24px" : "32px 32px",
                 opacity: 0.4,
                 maskImage: "radial-gradient(ellipse at center, black 40%, transparent 80%)",
                 zIndex: 1,
@@ -112,10 +123,10 @@ export default function Statement() {
 
             <div ref={containerRef} style={{ position: "relative", zIndex: 10, textAlign: "center", maxWidth: "1200px" }}>
                 <h2 style={{
-                    fontSize: "clamp(48px, 6vw, 96px)",
+                    fontSize: isMobile ? "clamp(32px, 9vw, 48px)" : isTablet ? "clamp(48px, 8vw, 72px)" : "clamp(48px, 6vw, 96px)",
                     fontWeight: "500",
                     lineHeight: 1.1,
-                    letterSpacing: "-0.03em",
+                    letterSpacing: isMobile ? "-0.02em" : "-0.03em",
                     color: "#0a0a0a",
                 }}>
                     {sentence.map((word, i) => (
@@ -136,19 +147,19 @@ export default function Statement() {
                 </h2>
 
                 <p style={{
-                    marginTop: "40px",
-                    fontSize: "clamp(18px, 2vw, 24px)",
+                    fontSize: isMobile ? "16px" : isTablet ? "18px" : "20px",
                     color: "#737373",
-                    maxWidth: "700px",
-                    margin: "40px auto 0",
+                    maxWidth: "600px",
+                    margin: isMobile ? "32px auto 0" : "48px auto 0",
                     lineHeight: 1.6,
                     opacity: 0,
-                    animation: "fadeInUp 1s ease 1s forwards"
+                    animation: "fadeIn 1s ease 1s forwards",
                 }}>
-                    Stop guessing. Start simulating.
+                    Architectural decisions are expensive to change. <br />
+                    Validate them before writing a single line of code.
                 </p>
                 <style jsx>{`
-                    @keyframes fadeInUp {
+                    @keyframes fadeIn {
                         from { opacity: 0; transform: translateY(20px); }
                         to { opacity: 1; transform: translateY(0); }
                     }

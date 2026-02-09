@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { gsap } from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
@@ -13,6 +13,18 @@ export default function LiveDemo() {
     const sectionRef = useRef(null);
     const cardRef = useRef(null);
     const videoRef = useRef(null);
+    const [isMobile, setIsMobile] = useState(false);
+    const [isTablet, setIsTablet] = useState(false);
+
+    useEffect(() => {
+        const handleResize = () => {
+            setIsMobile(window.innerWidth < 768);
+            setIsTablet(window.innerWidth >= 768 && window.innerWidth < 1024);
+        };
+        handleResize();
+        window.addEventListener("resize", handleResize);
+        return () => window.removeEventListener("resize", handleResize);
+    }, []);
 
     useEffect(() => {
         if (!sectionRef.current || !cardRef.current) return;
@@ -41,17 +53,17 @@ export default function LiveDemo() {
             ref={sectionRef}
             id="livedemo"
             style={{
-                padding: "120px 10vw 160px",
+                padding: isMobile ? "60px 20px 80px" : isTablet ? "100px 40px 120px" : "120px 80px 160px",
                 background: "#ffffff",
             }}
         >
             <h2 style={{
-                fontSize: "clamp(28px, 4vw, 44px)",
+                fontSize: isMobile ? "clamp(22px, 6vw, 28px)" : isTablet ? "clamp(26px, 5vw, 36px)" : "clamp(28px, 4vw, 44px)",
                 fontWeight: "500",
                 color: "#0a0a0a",
-                letterSpacing: "-1.5px",
+                letterSpacing: isMobile ? "-0.5px" : "-1.5px",
                 lineHeight: 1.3,
-                marginBottom: "60px",
+                marginBottom: isMobile ? "32px" : "60px",
                 maxWidth: "600px",
             }}>
                 Design, analyze, and optimize from first idea to production
@@ -60,7 +72,7 @@ export default function LiveDemo() {
             <div
                 ref={cardRef}
                 style={{
-                    borderRadius: "16px",
+                    borderRadius: isMobile ? "12px" : "16px",
                     overflow: "hidden",
                     background: "#fafafa",
                     border: "1px solid #e5e5e5",
@@ -69,7 +81,7 @@ export default function LiveDemo() {
             >
                 <div style={{
                     overflow: "hidden",
-                    marginBottom: "-60px",
+                    marginBottom: isMobile ? "-30px" : "-60px",
                     paddingBottom: "0",
                 }}>
                     <video
@@ -89,14 +101,14 @@ export default function LiveDemo() {
                 </div>
             </div>
 
-            <div style={{ marginTop: "40px" }}>
+            <div style={{ marginTop: isMobile ? "28px" : "40px" }}>
                 <Link
                     href="/analyze"
                     style={{
                         display: "inline-flex",
                         alignItems: "center",
                         gap: "10px",
-                        padding: "14px 28px",
+                        padding: isMobile ? "12px 22px" : "14px 28px",
                         background: "#0a0a0a",
                         color: "#fafafa",
                         fontSize: "14px",

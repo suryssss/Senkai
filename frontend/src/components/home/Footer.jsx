@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { gsap } from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
@@ -12,6 +12,18 @@ if (typeof window !== "undefined") {
 export default function Footer() {
     const footerRef = useRef(null);
     const contentRef = useRef(null);
+    const [isMobile, setIsMobile] = useState(false);
+    const [isTablet, setIsTablet] = useState(false);
+
+    useEffect(() => {
+        const handleResize = () => {
+            setIsMobile(window.innerWidth < 768);
+            setIsTablet(window.innerWidth >= 768 && window.innerWidth < 1024);
+        };
+        handleResize();
+        window.addEventListener("resize", handleResize);
+        return () => window.removeEventListener("resize", handleResize);
+    }, []);
 
     useEffect(() => {
         if (!footerRef.current || !contentRef.current) return;
@@ -58,7 +70,7 @@ export default function Footer() {
             style={{
                 background: "#050505",
                 borderTop: "1px solid #262626",
-                padding: "100px 10vw 40px",
+                padding: isMobile ? "60px 20px 30px" : isTablet ? "80px 40px 40px" : "100px 80px 40px",
                 position: "relative",
                 overflow: "hidden",
                 color: "#fafafa",
@@ -67,22 +79,31 @@ export default function Footer() {
             <div ref={contentRef} style={{ maxWidth: "1200px", margin: "0 auto" }}>
                 <div style={{
                     display: "grid",
-                    gridTemplateColumns: "2fr 1fr 1fr 1fr",
-                    gap: "60px",
-                    marginBottom: "80px",
+                    gridTemplateColumns: isMobile ? "1fr" : isTablet ? "1fr 1fr" : "2fr 1fr 1fr",
+                    gap: isMobile ? "40px" : isTablet ? "40px" : "60px",
+                    marginBottom: isMobile ? "40px" : "80px",
+                    textAlign: isMobile || isTablet ? "center" : "left",
                 }}>
-                    <div>
-                        <Link href="/" style={{ display: "flex", alignItems: "center", gap: "10px", textDecoration: "none", marginBottom: "24px" }}>
+                    <div style={{ gridColumn: isTablet ? "1 / -1" : "auto" }}>
+                        <Link href="/" style={{
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: isMobile || isTablet ? "center" : "flex-start",
+                            gap: "10px",
+                            textDecoration: "none",
+                            marginBottom: "24px"
+                        }}>
                             <span style={{ fontSize: "20px", fontWeight: "700", color: "#fafafa", letterSpacing: "-0.5px" }}>
                                 Senkai
                             </span>
                         </Link>
                         <p style={{
-                            fontSize: "15px",
+                            fontSize: isMobile ? "14px" : "15px",
                             color: "#a3a3a3",
                             lineHeight: 1.6,
                             marginBottom: "32px",
-                            maxWidth: "300px",
+                            maxWidth: isMobile || isTablet ? "100%" : "300px",
+                            margin: isMobile || isTablet ? "0 auto 32px" : "0 0 32px 0",
                         }}>
                             The first intelligent architecture visualization tool for modern engineering teams.
                         </p>
@@ -94,11 +115,19 @@ export default function Footer() {
                                 fontWeight: "600",
                                 color: "#fafafa",
                                 textTransform: "capitalize",
-                                marginBottom: "24px",
+                                marginBottom: isMobile ? "16px" : "24px",
                             }}>
                                 {category}
                             </h4>
-                            <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: "16px" }}>
+                            <ul style={{
+                                listStyle: "none",
+                                padding: 0,
+                                margin: 0,
+                                display: "flex",
+                                flexDirection: "column",
+                                gap: isMobile ? "12px" : "16px",
+                                alignItems: isMobile || isTablet ? "center" : "flex-start",
+                            }}>
                                 {items.map((item, i) => (
                                     <li key={i}>
                                         <Link
@@ -121,15 +150,15 @@ export default function Footer() {
                     ))}
                 </div>
                 <div style={{
-                    paddingTop: "40px",
+                    paddingTop: isMobile ? "24px" : "40px",
                     borderTop: "1px solid #262626",
                     display: "flex",
-                    justifyContent: "space-between",
+                    justifyContent: isMobile || isTablet ? "center" : "space-between",
                     alignItems: "center",
                     flexWrap: "wrap",
                     gap: "20px",
                 }}>
-                    <div style={{ fontSize: "13px", color: "#737373" }}>
+                    <div style={{ fontSize: isMobile ? "12px" : "13px", color: "#737373" }}>
                         © 2026 Senkai Inc. All rights reserved.
                     </div>
                 </div>

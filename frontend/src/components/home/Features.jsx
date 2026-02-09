@@ -13,6 +13,8 @@ export default function Features() {
     const cursorRef = useRef(null);
     const [activeIndex, setActiveIndex] = useState(0);
     const [hoveredIndex, setHoveredIndex] = useState(-1);
+    const [isMobile, setIsMobile] = useState(false);
+    const [isTablet, setIsTablet] = useState(false);
     const featureRefs = useRef([]);
 
     const features = [
@@ -45,6 +47,16 @@ export default function Features() {
             color: "#7c3aed",
         },
     ];
+
+    useEffect(() => {
+        const handleResize = () => {
+            setIsMobile(window.innerWidth < 768);
+            setIsTablet(window.innerWidth >= 768 && window.innerWidth < 1024);
+        };
+        handleResize();
+        window.addEventListener("resize", handleResize);
+        return () => window.removeEventListener("resize", handleResize);
+    }, []);
 
     useEffect(() => {
         if (!sectionRef.current) return;
@@ -83,58 +95,73 @@ export default function Features() {
 
         return () => ctx.revert();
     }, []);
+
     useEffect(() => {
-        if (!sectionRef.current || !cursorRef.current) return;
+        if (!sectionRef.current || !cursorRef.current || isMobile || isTablet) return;
 
         const section = sectionRef.current;
         const cursor = cursorRef.current;
 
-        const handleMouseMove = (e) => {
+        const moveCursor = (e) => {
             const rect = section.getBoundingClientRect();
             gsap.to(cursor, {
                 x: e.clientX - rect.left,
                 y: e.clientY - rect.top,
-                duration: 0.3,
+                duration: 0.5,
                 ease: "power2.out",
             });
         };
 
-        section.addEventListener("mousemove", handleMouseMove);
-        return () => section.removeEventListener("mousemove", handleMouseMove);
-    }, []);
+        section.addEventListener("mousemove", moveCursor);
+        return () => section.removeEventListener("mousemove", moveCursor);
+    }, [isMobile, isTablet]);
 
     return (
         <section
             ref={sectionRef}
             id="features"
             style={{
-                padding: "200px 10vw",
+                background: "#f8f8f8",
+                padding: isMobile ? "60px 20px" : isTablet ? "100px 40px" : "160px 80px",
                 position: "relative",
-                background: "#ffffff",
+                overflow: "hidden",
             }}
         >
-            <div
-                ref={cursorRef}
-                style={{
-                    position: "absolute",
-                    top: 0,
-                    left: 0,
-                    width: hoveredIndex >= 0 ? "80px" : "0px",
-                    height: hoveredIndex >= 0 ? "80px" : "0px",
-                    borderRadius: "50%",
-                    background: hoveredIndex >= 0 ? features[hoveredIndex]?.color : "#4f46e5",
-                    opacity: hoveredIndex >= 0 ? 0.15 : 0,
-                    pointerEvents: "none",
-                    transform: "translate(-50%, -50%)",
-                    transition: "width 0.3s ease, height 0.3s ease, opacity 0.3s ease, background 0.3s ease",
-                    zIndex: 1,
-                }}
-            />
+            <div style={{
+                position: "absolute",
+                top: "20%",
+                left: "-10%",
+                width: isMobile ? "200px" : "500px",
+                height: isMobile ? "200px" : "500px",
+                background: "radial-gradient(circle, rgba(16, 185, 129, 0.05) 0%, transparent 70%)",
+                filter: "blur(60px)",
+                borderRadius: "50%",
+                zIndex: 0,
+            }} />
+            {!isMobile && !isTablet && (
+                <div
+                    ref={cursorRef}
+                    style={{
+                        position: "absolute",
+                        top: 0,
+                        left: 0,
+                        width: hoveredIndex >= 0 ? "80px" : "0px",
+                        height: hoveredIndex >= 0 ? "80px" : "0px",
+                        borderRadius: "50%",
+                        background: hoveredIndex >= 0 ? features[hoveredIndex]?.color : "#4f46e5",
+                        opacity: hoveredIndex >= 0 ? 0.15 : 0,
+                        pointerEvents: "none",
+                        transform: "translate(-50%, -50%)",
+                        transition: "width 0.3s ease, height 0.3s ease, opacity 0.3s ease, background 0.3s ease",
+                        zIndex: 1,
+                    }}
+                />
+            )}
 
-            <div style={{ marginBottom: "120px" }}>
-                <div style={{ display: "flex", alignItems: "center", gap: "16px", marginBottom: "32px" }}>
+            <div style={{ marginBottom: isMobile ? "40px" : isTablet ? "80px" : "120px" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "16px", marginBottom: isMobile ? "16px" : "32px" }}>
                     <span style={{
-                        fontSize: "12px",
+                        fontSize: isMobile ? "11px" : "12px",
                         color: "#a3a3a3",
                         letterSpacing: "3px",
                         textTransform: "uppercase",
@@ -144,10 +171,10 @@ export default function Features() {
                     <div style={{ flex: 1, height: "1px", background: "#e5e5e5" }} />
                 </div>
                 <h2 style={{
-                    fontSize: "clamp(36px, 5vw, 56px)",
+                    fontSize: isMobile ? "clamp(28px, 8vw, 36px)" : isTablet ? "clamp(32px, 6vw, 48px)" : "clamp(36px, 5vw, 56px)",
                     fontWeight: "500",
                     color: "#0a0a0a",
-                    letterSpacing: "-2px",
+                    letterSpacing: isMobile ? "-1px" : "-2px",
                     lineHeight: 1.1,
                 }}>
                     Everything you need to<br />
@@ -155,45 +182,52 @@ export default function Features() {
                 </h2>
             </div>
 
-            <div style={{ display: "flex", gap: "80px" }}>
-                <div style={{
-                    width: "60px",
-                    display: "flex",
-                    flexDirection: "column",
-                    gap: "40px",
-                    position: "sticky",
-                    top: "40vh",
-                    height: "fit-content",
-                }}>
-                    {features.map((_, i) => (
-                        <div
-                            key={i}
-                            style={{
-                                width: "100%",
-                                height: "2px",
-                                background: i === activeIndex ? features[i].color : "#e5e5e5",
-                                transition: "background 0.3s ease",
-                            }}
-                        />
-                    ))}
-                </div>
+            <div style={{ display: "flex", gap: isMobile || isTablet ? "0" : "80px" }}>
+                {!isMobile && !isTablet && (
+                    <div style={{
+                        width: "60px",
+                        display: "flex",
+                        flexDirection: "column",
+                        gap: "40px",
+                        position: "sticky",
+                        top: "40vh",
+                        height: "fit-content",
+                    }}>
+                        {features.map((_, i) => (
+                            <div
+                                key={i}
+                                style={{
+                                    width: "100%",
+                                    height: "2px",
+                                    background: i === activeIndex ? features[i].color : "#e5e5e5",
+                                    transition: "background 0.3s ease",
+                                }}
+                            />
+                        ))}
+                    </div>
+                )}
 
                 <div style={{ flex: 1, position: "relative", zIndex: 2 }}>
                     {features.map((feature, i) => (
                         <div
                             key={i}
                             ref={(el) => featureRefs.current[i] = el}
-                            onMouseEnter={() => setHoveredIndex(i)}
-                            onMouseLeave={() => setHoveredIndex(-1)}
+                            onMouseEnter={() => !isMobile && !isTablet && setHoveredIndex(i)}
+                            onMouseLeave={() => !isMobile && !isTablet && setHoveredIndex(-1)}
                             style={{
-                                padding: "60px 0",
+                                padding: isMobile ? "24px 0" : isTablet ? "40px 0" : "60px 0",
                                 borderBottom: i < features.length - 1 ? "1px solid #f0f0f0" : "none",
-                                cursor: "pointer",
+                                cursor: isMobile || isTablet ? "default" : "pointer",
                             }}
                         >
-                            <div style={{ display: "flex", alignItems: "flex-start", gap: "40px" }}>
+                            <div style={{
+                                display: "flex",
+                                alignItems: "flex-start",
+                                gap: isMobile ? "16px" : isTablet ? "24px" : "40px",
+                                flexDirection: isMobile ? "column" : "row",
+                            }}>
                                 <span style={{
-                                    fontSize: "14px",
+                                    fontSize: isMobile ? "12px" : "14px",
                                     color: feature.color,
                                     fontWeight: "500",
                                     fontFamily: "monospace",
@@ -204,7 +238,7 @@ export default function Features() {
                                 </span>
                                 <div style={{ flex: 1 }}>
                                     <h3 style={{
-                                        fontSize: "clamp(32px, 4vw, 48px)",
+                                        fontSize: isMobile ? "clamp(24px, 7vw, 32px)" : "clamp(32px, 4vw, 48px)",
                                         fontWeight: "500",
                                         color: "#0a0a0a",
                                         letterSpacing: "-1px",
@@ -226,12 +260,12 @@ export default function Features() {
                                         </span>
                                     </h3>
                                     <p style={{
-                                        fontSize: "16px",
+                                        fontSize: isMobile ? "14px" : "16px",
                                         color: "#737373",
                                         lineHeight: 1.6,
                                         maxWidth: "500px",
                                         transition: "opacity 0.3s ease",
-                                        opacity: hoveredIndex === i ? 1 : 0.7,
+                                        opacity: isMobile || isTablet ? 1 : (hoveredIndex === i ? 1 : 0.7),
                                     }}>
                                         {feature.description}
                                     </p>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { gsap } from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 
@@ -12,6 +12,18 @@ export default function Marquee() {
     const marqueeRef = useRef(null);
     const track1Ref = useRef(null);
     const track2Ref = useRef(null);
+    const [isMobile, setIsMobile] = useState(false);
+    const [isTablet, setIsTablet] = useState(false);
+
+    useEffect(() => {
+        const handleResize = () => {
+            setIsMobile(window.innerWidth < 768);
+            setIsTablet(window.innerWidth >= 768 && window.innerWidth < 1024);
+        };
+        handleResize();
+        window.addEventListener("resize", handleResize);
+        return () => window.removeEventListener("resize", handleResize);
+    }, []);
 
     useEffect(() => {
         if (!marqueeRef.current || !track1Ref.current || !track2Ref.current) return;
@@ -57,19 +69,19 @@ export default function Marquee() {
         <section
             ref={marqueeRef}
             style={{
-                padding: "80px 0",
+                padding: isMobile ? "40px 0" : isTablet ? "60px 0" : "80px 0",
                 borderTop: "1px solid #e5e5e5",
                 borderBottom: "1px solid #e5e5e5",
                 background: "#f5f5f5",
                 overflow: "hidden",
             }}
         >
-            <div style={{ overflow: "hidden", marginBottom: "20px" }}>
+            <div style={{ overflow: "hidden", marginBottom: isMobile ? "12px" : "20px" }}>
                 <div
                     ref={track1Ref}
                     style={{
                         display: "flex",
-                        gap: "60px",
+                        gap: isMobile ? "30px" : isTablet ? "40px" : "60px",
                         whiteSpace: "nowrap",
                         width: "fit-content",
                     }}
@@ -78,7 +90,7 @@ export default function Marquee() {
                         <span
                             key={i}
                             style={{
-                                fontSize: "clamp(32px, 5vw, 64px)",
+                                fontSize: isMobile ? "clamp(20px, 6vw, 32px)" : isTablet ? "clamp(24px, 5vw, 48px)" : "clamp(32px, 5vw, 64px)",
                                 fontWeight: "500",
                                 color: word === "•" ? "#d4d4d4" : "#0a0a0a",
                                 letterSpacing: "-1px",
@@ -94,7 +106,7 @@ export default function Marquee() {
                     ref={track2Ref}
                     style={{
                         display: "flex",
-                        gap: "60px",
+                        gap: isMobile ? "30px" : "60px",
                         whiteSpace: "nowrap",
                         width: "fit-content",
                     }}
@@ -103,7 +115,7 @@ export default function Marquee() {
                         <span
                             key={i}
                             style={{
-                                fontSize: "clamp(32px, 5vw, 64px)",
+                                fontSize: isMobile ? "clamp(20px, 6vw, 32px)" : "clamp(32px, 5vw, 64px)",
                                 fontWeight: "500",
                                 color: word === "◦" ? "#d4d4d4" : "transparent",
                                 WebkitTextStroke: word === "◦" ? "none" : "1px #a3a3a3",
