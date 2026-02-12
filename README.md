@@ -35,15 +35,6 @@ Senkai lets users:
 - Cascade failure visualization
 - System stability analysis
 
-###  AI Architecture Generator
-Describe a system in plain English:
-> “Design scalable chat app for 1M users”
-
-AI generates:
-- Complete architecture  
-- Service structure  
-- Suggested capacities  
-- Risk explanation  
 
 ###  Professional PDF Reports
 Export architecture reports including:
