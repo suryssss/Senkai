@@ -52,14 +52,14 @@ Export architecture reports including:
 - Next.js (App Router)
 - Tailwind CSS
 - React Flow (visual architecture canvas)
-- GSAP / Framer Motion
+- GSAP 
 - Axios
 
 ### Backend
 - Node.js
 - Express.js
 - Graph-based analysis engine
-- Gemini/OpenAI integration for AI suggestions
+- Groq ai API integration for AI suggestions
 
 ### Deployment
 - Frontend: Vercel
