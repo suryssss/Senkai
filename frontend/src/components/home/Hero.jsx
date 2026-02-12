@@ -295,12 +295,6 @@ export default function Hero() {
                 </div>
             )}
 
-            <style jsx>{`
-                @keyframes scrollPulse {
-                    0%, 100% { transform: scaleY(1); opacity: 0.5; }
-                    50% { transform: scaleY(1.3); opacity: 1; }
-                }
-            `}</style>
         </section>
     );
 }

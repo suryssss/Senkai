@@ -76,9 +76,9 @@ export default function Statement() {
         { text: "systems", highlight: false },
         { text: "fail", highlight: false },
         { text: "in", highlight: false },
-        { text: "architecture,", highlight: true, color: "#ef4444" }, // Red for fail/danger
+        { text: "architecture,", highlight: true, color: "#ef4444" },
         { text: "not", highlight: false },
-        { text: "code.", highlight: true, color: "#10b981" }, // Green for code/safe
+        { text: "code.", highlight: true, color: "#10b981" },
     ];
 
     return (
@@ -109,8 +109,6 @@ export default function Statement() {
                 zIndex: 0,
                 pointerEvents: "none",
             }} />
-
-            {/* Background pattern */}
             <div style={{
                 position: "absolute",
                 inset: 0,
@@ -153,17 +151,11 @@ export default function Statement() {
                     margin: isMobile ? "32px auto 0" : "48px auto 0",
                     lineHeight: 1.6,
                     opacity: 0,
-                    animation: "fadeIn 1s ease 1s forwards",
+                    animation: "fadeInUp 1s ease 1s forwards",
                 }}>
                     Architectural decisions are expensive to change. <br />
                     Validate them before writing a single line of code.
                 </p>
-                <style jsx>{`
-                    @keyframes fadeIn {
-                        from { opacity: 0; transform: translateY(20px); }
-                        to { opacity: 1; transform: translateY(0); }
-                    }
-                `}</style>
             </div>
         </section>
     );

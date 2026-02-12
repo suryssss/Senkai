@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import { useTheme } from "@/context/ThemeContext";
 
 const RiskMeter = ({ score, risk }) => {
@@ -32,10 +33,35 @@ const RiskMeter = ({ score, risk }) => {
     );
 };
 
-const Toolbar = ({ onAddService, onSave, onLoad, onDownloadReport, onAnalyze, onClear, isAnalyzing, nodeCount, analysisResults }) => {
+const Toolbar = ({
+    onAddService,
+    onSave,
+    onLoad,
+    onDownloadReport,
+    onAnalyze,
+    onClear,
+    isAnalyzing,
+    nodeCount,
+    analysisResults,
+    totalTraffic,
+    onTotalTrafficChange,
+    entryNodeId,
+    onEntryNodeChange,
+    nodes,
+}) => {
     const { theme, toggleTheme } = useTheme();
     const riskScore = analysisResults?.overallRisk?.riskScore ?? null;
     const riskLevel = analysisResults?.overallRisk?.overallRisk ?? null;
+
+    // Local string state to avoid leading-zero artifacts while typing
+    const [trafficInput, setTrafficInput] = useState(
+        totalTraffic != null ? String(totalTraffic) : ""
+    );
+
+    useEffect(() => {
+        // Keep local display in sync when parent updates totalTraffic (e.g. load preset)
+        setTrafficInput(totalTraffic != null ? String(totalTraffic) : "");
+    }, [totalTraffic]);
 
     return (
         <header style={{ height: "56px", background: "var(--bg-secondary)", borderBottom: "1px solid var(--border-subtle)", display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 20px", position: "relative", zIndex: 100 }}>
@@ -156,8 +182,67 @@ const Toolbar = ({ onAddService, onSave, onLoad, onDownloadReport, onAnalyze, on
                 </div>
             </div>
 
-            {/* Analyze Button */}
-            <div style={{ position: "absolute", left: "50%", transform: "translateX(-50%)", display: "flex", alignItems: "center" }}>
+            {/* Analyze Controls */}
+            <div style={{ position: "absolute", left: "50%", transform: "translateX(-50%)", display: "flex", alignItems: "center", gap: "10px" }}>
+                {/* Traffic input + entry node selector */}
+                <div style={{ display: "flex", alignItems: "center", gap: "8px", padding: "6px 10px", background: "var(--bg-tertiary)", borderRadius: "999px", border: "1px solid var(--border-subtle)" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                        <span style={{ fontSize: "11px", color: "var(--text-muted)", whiteSpace: "nowrap" }}>Traffic</span>
+                        <input
+                            type="text"
+                            value={trafficInput}
+                            onChange={(e) => {
+                                // Strip non-digits
+                                let raw = e.target.value.replace(/[^\d]/g, "");
+                                // Remove leading zeros (keep single zero if that's all)
+                                if (raw.length > 1) {
+                                    raw = raw.replace(/^0+/, "");
+                                }
+                                setTrafficInput(raw);
+
+                                const numeric = raw === "" ? 0 : parseInt(raw, 10);
+                                onTotalTrafficChange(Number.isNaN(numeric) ? 0 : numeric);
+                            }}
+                            style={{
+                                width: "90px",
+                                padding: "4px 8px",
+                                fontSize: "11px",
+                                color: "var(--text-primary)",
+                                background: "var(--bg-primary)",
+                                border: "1px solid var(--border-subtle)",
+                                borderRadius: "999px",
+                                outline: "none",
+                            }}
+                        />
+                        <span style={{ fontSize: "11px", color: "var(--text-muted)" }}>req/s</span>
+                    </div>
+                    <div style={{ width: "1px", height: "18px", background: "var(--border-subtle)" }} />
+                    <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                        <span style={{ fontSize: "11px", color: "var(--text-muted)", whiteSpace: "nowrap" }}>Entry</span>
+                        <select
+                            value={entryNodeId || ""}
+                            onChange={(e) => onEntryNodeChange(e.target.value)}
+                            style={{
+                                maxWidth: "150px",
+                                padding: "4px 8px",
+                                fontSize: "11px",
+                                color: "var(--text-primary)",
+                                background: "var(--bg-primary)",
+                                border: "1px solid var(--border-subtle)",
+                                borderRadius: "999px",
+                                outline: "none",
+                                cursor: "pointer",
+                            }}
+                        >
+                            {(nodes || []).map((n) => (
+                                <option key={n.id} value={n.id}>
+                                    {n.data?.label || n.id}
+                                </option>
+                            ))}
+                        </select>
+                    </div>
+                </div>
+
                 <button
                     onClick={onAnalyze}
                     disabled={isAnalyzing || nodeCount === 0}

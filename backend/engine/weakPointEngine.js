@@ -2,6 +2,7 @@ function findWeakestService(nodes) {
     if (!nodes.length) return null;
 
     let weakest = null;
+    let weakestCapacity = 0;
     let minRemaining = Infinity;
 
     nodes.forEach(node => {
@@ -12,6 +13,7 @@ function findWeakestService(nodes) {
 
         if (remaining < minRemaining) {
             minRemaining = remaining;
+            weakestCapacity = capacity;
             weakest = {
                 service: node.id,
                 remainingCapacity: remaining,
@@ -23,7 +25,7 @@ function findWeakestService(nodes) {
     let risk = "low";
 
     if (weakest.remainingCapacity <= 0) risk = "critical";
-    else if (weakest.remainingCapacity < weakest.remainingCapacity * 0.2) risk = "high";
+    else if (weakest.remainingCapacity < weakestCapacity * 0.2) risk = "high";
 
     return {
         weakestService: weakest.service,

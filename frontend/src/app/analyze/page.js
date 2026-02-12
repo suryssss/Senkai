@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useMemo, useRef, useEffect } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import { useNodesState, useEdgesState, addEdge } from "@xyflow/react";
 import axios from "axios";
 
@@ -24,11 +24,11 @@ const initialNodes = [
 ];
 
 const initialEdges = [
-    { id: "e1", source: "api-gateway", target: "user-service", data: { latency: 15 } },
-    { id: "e2", source: "api-gateway", target: "auth-service", data: { latency: 10 } },
-    { id: "e3", source: "user-service", target: "database", data: { latency: 25 } },
-    { id: "e4", source: "auth-service", target: "database", data: { latency: 20 } },
-    { id: "e5", source: "auth-service", target: "redis-cache", data: { latency: 5 } },
+    { id: "e1", source: "api-gateway", target: "user-service", data: { latency: 15, percentage: 100 } },
+    { id: "e2", source: "api-gateway", target: "auth-service", data: { latency: 10, percentage: 100 } },
+    { id: "e3", source: "user-service", target: "database", data: { latency: 25, percentage: 70 } },
+    { id: "e4", source: "auth-service", target: "database", data: { latency: 20, percentage: 100 } },
+    { id: "e5", source: "auth-service", target: "redis-cache", data: { latency: 5, percentage: 30 } },
 ];
 
 const api = axios.create({
@@ -50,12 +50,13 @@ export default function AnalyzePage() {
     const [toast, setToast] = useState(null);
     const [reactFlowInstance, setReactFlowInstance] = useState(null);
     const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+    const [totalTraffic, setTotalTraffic] = useState(10000);
+    const [entryNodeId, setEntryNodeId] = useState(initialNodes[0]?.id || "");
     const isAnalyzingRef = useRef(false);
     const historyRef = useRef([{ nodes: initialNodes, edges: initialEdges }]);
     const historyIndexRef = useRef(0);
     const isUndoRedoRef = useRef(false);
 
-    // Save state to history
     const saveToHistory = useCallback((newNodes, newEdges) => {
         if (isUndoRedoRef.current) {
             isUndoRedoRef.current = false;
@@ -116,13 +117,12 @@ export default function AnalyzePage() {
         return () => clearTimeout(saveTimeoutRef.current);
     }, [nodes, edges, saveToHistory]);
 
-    const formatPayload = useMemo(() => ({
-        nodes: nodes.map((n) => ({ id: n.id, capacity: Number(n.data.capacity) || 0, load: Number(n.data.load) || 0 })),
-        edges: edges.map((e) => ({ source: e.source, target: e.target, latency: Number(e.data?.latency) || 10 })),
-    }), [nodes, edges]);
-
     const onConnect = useCallback((params) => {
-        const newEdge = { ...params, id: `e-${params.source}-${params.target}-${Date.now()}`, data: { latency: 10 } };
+        const newEdge = {
+            ...params,
+            id: `e-${params.source}-${params.target}-${Date.now()}`,
+            data: { latency: 10, percentage: 100 },
+        };
         setEdges((eds) => addEdge(newEdge, eds));
     }, [setEdges]);
 
@@ -194,7 +194,61 @@ export default function AnalyzePage() {
         clearSimulationState();
 
         try {
-            const response = await api.post("/api/analyze", formatPayload);
+            const trafficPayload = {
+                total_traffic: Number(totalTraffic) || 0,
+                entry_node: entryNodeId || nodes[0]?.id,
+                nodes: nodes.map((n) => ({
+                    id: n.id,
+                    type: n.data.type,
+                    capacity: Number(n.data.capacity) || 0,
+                })),
+                edges: edges.map((e) => ({
+                    from: e.source,
+                    to: e.target,
+                    percentage: Number(e.data?.percentage) || 0,
+                })),
+            };
+
+            const trafficResponse = await api.post("/api/traffic", trafficPayload);
+
+            if (!trafficResponse.data?.success) {
+                throw new Error(trafficResponse.data?.message || "Traffic simulation failed");
+            }
+
+            const { node_results: nodeResults } = trafficResponse.data;
+            const nodesWithTraffic = nodes.map((node) => {
+                const summary = nodeResults?.find((r) => r.id === node.id);
+                const load = Number(summary?.incoming_traffic) || 0;
+                const utilizationPercent = Number.isFinite(summary?.utilization)
+                    ? Number((summary.utilization * 100).toFixed(1))
+                    : null;
+
+                return {
+                    ...node,
+                    data: {
+                        ...node.data,
+                        load,
+                        trafficStatus: summary?.status || null,
+                        trafficUtilization: utilizationPercent,
+                    },
+                };
+            });
+
+            setNodes(nodesWithTraffic);
+            const analyzePayload = {
+                nodes: nodesWithTraffic.map((n) => ({
+                    id: n.id,
+                    capacity: Number(n.data.capacity) || 0,
+                    load: Number(n.data.load) || 0,
+                })),
+                edges: edges.map((e) => ({
+                    source: e.source,
+                    target: e.target,
+                    latency: Number(e.data?.latency) || 10,
+                })),
+            };
+
+            const response = await api.post("/api/analyze", analyzePayload);
             const results = response.data;
 
             if (!results.success) {
@@ -225,43 +279,96 @@ export default function AnalyzePage() {
             isAnalyzingRef.current = false;
             setIsAnalyzing(false);
         }
-    }, [nodes.length, formatPayload, setNodes, clearSimulationState]);
+    }, [nodes, edges, totalTraffic, entryNodeId, setNodes, clearSimulationState]);
 
     const handleStressTest = useCallback(async () => {
         if (nodes.length === 0 || activeSimulation) return;
-        setActiveSimulation('stress');
+        setActiveSimulation("stress");
         clearSimulationState();
 
-        const multipliers = [1.2, 1.5, 2.0];
+        try {
+            const trafficSteps = [
+                { t: 0, total_traffic: Math.max(1000, (Number(totalTraffic) || 0) * 0.1) },
+                { t: 5, total_traffic: Math.max(5000, (Number(totalTraffic) || 0) * 0.5) },
+                { t: 10, total_traffic: Math.max(20000, (Number(totalTraffic) || 0) * 2.0) },
+                { t: 15, total_traffic: Math.max(50000, (Number(totalTraffic) || 0) * 5.0) },
+            ];
 
-        for (let i = 0; i < multipliers.length; i++) {
-            await new Promise((r) => setTimeout(r, i === 0 ? 300 : 1200));
+            const timelinePayload = {
+                entry_node: entryNodeId || nodes[0]?.id,
+                nodes: nodes.map((n) => ({
+                    id: n.id,
+                    capacity: Number(n.data.capacity) || 0,
+                    base_latency: 50,
+                })),
+                edges: edges.map((e) => ({
+                    from: e.source,
+                    to: e.target,
+                    percentage: Number(e.data?.percentage) || 0,
+                })),
+                traffic_steps: trafficSteps,
+                timeout_ms: 2000,
+                retry_rate: 1.0,
+                failure_rate: 0.3,
+            };
 
-            setNodes((nds) => {
-                const updated = nds.map((node) => {
-                    const simulatedLoad = Math.round(node.data.load * multipliers[i]);
-                    const util = (simulatedLoad / node.data.capacity) * 100;
-                    const status = util >= 100 ? "crashed" : util >= 85 ? "danger" : util >= 60 ? "warning" : "safe";
+            const res = await api.post("/api/traffic/timeline", timelinePayload);
+            if (!res.data?.success) {
+                throw new Error(res.data?.message || "Stress test simulation failed");
+            }
 
-                    return { ...node, data: { ...node.data, simulatedLoad, simulationStatus: status, simulationDuration: 8000 } };
+            const { steps, first_failure } = res.data;
+            for (let i = 0; i < steps.length; i++) {
+                const step = steps[i];
+                await new Promise((r) => setTimeout(r, i === 0 ? 300 : 1200));
+
+                setNodes((nds) =>
+                    nds.map((node) => {
+                        const summary = step.node_results.find((n) => n.id === node.id);
+                        const simulatedLoad = summary?.incoming_traffic ?? node.data.load;
+                        const util = (simulatedLoad / (node.data.capacity || 1)) * 100;
+                        let status = "safe";
+                        if (util >= 120 || summary?.status === "critical") status = "crashed";
+                        else if (util >= 85 || summary?.status === "overloaded") status = "danger";
+                        else if (util >= 60 || summary?.status === "warning") status = "warning";
+
+                        return {
+                            ...node,
+                            data: {
+                                ...node.data,
+                                simulatedLoad,
+                                simulationStatus: status,
+                                simulationDuration: 8000,
+                            },
+                        };
+                    })
+                );
+            }
+
+            if (first_failure) {
+                setToast({
+                    message: `First failure: ${first_failure.node_id} at ~${first_failure.at_traffic} req/s (${first_failure.reason})`,
+                    type: "error",
                 });
-
-                const crashed = updated.find((n) => n.data.simulationStatus === "crashed");
-                if (crashed) return updated.map((n) => n.id === crashed.id ? { ...n, data: { ...n.data, isWeakest: true } } : n);
-                return updated;
+            }
+        } catch (err) {
+            console.error("Stress test failed:", err);
+            setToast({
+                message: err.response?.data?.message || err.message || "Stress test failed",
+                type: "error",
             });
+        } finally {
+            setTimeout(() => {
+                clearSimulationState();
+                setActiveSimulation(null);
+            }, 4000);
         }
+    }, [nodes, edges, totalTraffic, entryNodeId, activeSimulation, setNodes, clearSimulationState]);
 
-        setTimeout(() => { clearSimulationState(); setActiveSimulation(null); }, 4000);
-    }, [nodes.length, activeSimulation, setNodes, clearSimulationState]);
-
-    // Cascade Failure 
     const handleCascadeSimulation = useCallback(async () => {
         if (nodes.length === 0 || activeSimulation) return;
         setActiveSimulation('cascade');
         clearSimulationState();
-
-        // Find weakest node
         const weakest = nodes.reduce((w, n) => {
             const util = (n.data.load / n.data.capacity) * 100;
             return util > (w?.util || 0) ? { node: n, util } : w;
@@ -300,7 +407,11 @@ export default function AnalyzePage() {
     }, [setNodes]);
 
     const handleUpdateEdge = useCallback((edgeId, updates) => {
-        setEdges((eds) => eds.map((e) => e.id === edgeId ? { ...e, data: { ...e.data, ...updates } } : e));
+        setEdges((eds) =>
+            eds.map((e) =>
+                e.id === edgeId ? { ...e, data: { ...e.data, ...updates } } : e
+            )
+        );
     }, [setEdges]);
 
     const handleDeleteNode = useCallback((nodeId) => {
@@ -453,6 +564,11 @@ export default function AnalyzePage() {
                 isAnalyzing={isAnalyzing}
                 nodeCount={nodes.length}
                 analysisResults={analysisResults}
+                totalTraffic={totalTraffic}
+                onTotalTrafficChange={setTotalTraffic}
+                entryNodeId={entryNodeId}
+                onEntryNodeChange={setEntryNodeId}
+                nodes={nodes}
             />
             {error && (
                 <div style={{ padding: "12px 24px", background: "var(--status-danger-bg)", borderBottom: "1px solid rgba(239,68,68,0.3)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>

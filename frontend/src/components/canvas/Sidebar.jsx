@@ -5,6 +5,7 @@ import { useState, useEffect } from "react";
 const Sidebar = ({ selectedNode, selectedEdge, analysisResults, onUpdateNode, onUpdateEdge, onDeleteNode, onDeleteEdge, onStressTest, onCascadeSimulation, activeSimulation }) => {
     const [nodeForm, setNodeForm] = useState({ label: "", type: "api", capacity: 100, load: 0 });
     const [edgeLatency, setEdgeLatency] = useState(10);
+    const [edgePercentage, setEdgePercentage] = useState(100);
     const [activeTab, setActiveTab] = useState("properties");
 
     useEffect(() => {
@@ -17,6 +18,11 @@ const Sidebar = ({ selectedNode, selectedEdge, analysisResults, onUpdateNode, on
     useEffect(() => {
         if (selectedEdge) {
             setEdgeLatency(selectedEdge.data?.latency || 10);
+            setEdgePercentage(
+                typeof selectedEdge.data?.percentage === "number"
+                    ? selectedEdge.data.percentage
+                    : 100
+            );
             setActiveTab("properties");
         }
     }, [selectedEdge]);
@@ -26,7 +32,14 @@ const Sidebar = ({ selectedNode, selectedEdge, analysisResults, onUpdateNode, on
     }, [analysisResults]);
 
     const handleNodeUpdate = () => { if (selectedNode) onUpdateNode(selectedNode.id, nodeForm); };
-    const handleEdgeUpdate = () => { if (selectedEdge) onUpdateEdge(selectedEdge.id, { latency: edgeLatency }); };
+    const handleEdgeUpdate = () => {
+        if (selectedEdge) {
+            onUpdateEdge(selectedEdge.id, {
+                latency: edgeLatency,
+                percentage: edgePercentage,
+            });
+        }
+    };
 
     const serviceTypes = [
         { value: "service", label: "Microservice" },
@@ -290,9 +303,33 @@ const Sidebar = ({ selectedNode, selectedEdge, analysisResults, onUpdateNode, on
                                     <div style={{ fontSize: "11px", color: "var(--text-muted)" }}>Data flows from source to target</div>
                                 </Card>
 
-                                <div style={{ marginBottom: "16px" }}>
-                                    <label style={labelStyle}>Latency (milliseconds)</label>
-                                    <input type="number" value={edgeLatency} onChange={(e) => setEdgeLatency(parseInt(e.target.value) || 0)} onBlur={handleEdgeUpdate} min="0" style={inputStyle} />
+                                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px", marginBottom: "16px" }}>
+                                    <div>
+                                        <label style={labelStyle}>Latency (ms)</label>
+                                        <input
+                                            type="number"
+                                            value={edgeLatency}
+                                            onChange={(e) => setEdgeLatency(parseInt(e.target.value, 10) || 0)}
+                                            onBlur={handleEdgeUpdate}
+                                            min="0"
+                                            style={inputStyle}
+                                        />
+                                    </div>
+                                    <div>
+                                        <label style={labelStyle}>Traffic Share (%)</label>
+                                        <input
+                                            type="number"
+                                            value={edgePercentage}
+                                            onChange={(e) => {
+                                                const value = parseInt(e.target.value, 10);
+                                                setEdgePercentage(Number.isNaN(value) ? 0 : Math.min(Math.max(value, 0), 100));
+                                            }}
+                                            onBlur={handleEdgeUpdate}
+                                            min="0"
+                                            max="100"
+                                            style={inputStyle}
+                                        />
+                                    </div>
                                 </div>
 
                                 <div style={{ display: "flex", gap: "10px" }}>
