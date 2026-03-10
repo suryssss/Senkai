@@ -8,6 +8,7 @@ import Lenis from "lenis";
 import {
   Navbar,
   Hero,
+  HowItWorks,
   Marquee,
   LiveDemo,
   Features,
@@ -66,6 +67,7 @@ export default function Home() {
     >
       <Navbar />
       <Hero />
+      <HowItWorks />
       <Marquee />
       <LiveDemo />
       <Features />

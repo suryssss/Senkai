@@ -86,7 +86,7 @@ function simulateTraffic({ totalTraffic, entryNode, nodes, edges, maxVisitsPerNo
 
         const baseLatency = Number(node.base_latency) || 0;
         const overload = capacity > 0 ? Math.max(0, load - capacity) : 0;
-        const queue = overload; // simple queue model: anything above capacity queues
+        const queue = overload;
         const latency = capacity > 0
             ? baseLatency + (queue / capacity) * 100
             : baseLatency;
@@ -125,4 +125,3 @@ function simulateTraffic({ totalTraffic, entryNode, nodes, edges, maxVisitsPerNo
 module.exports = {
     simulateTraffic,
 };
-

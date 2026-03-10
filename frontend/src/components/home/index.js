@@ -1,5 +1,6 @@
 export { default as Navbar } from "./Navbar";
 export { default as Hero } from "./Hero";
+export { default as HowItWorks } from "./HowItWorks";
 export { default as LiveDemo } from "./LiveDemo";
 export { default as Marquee } from "./Marquee";
 export { default as Features } from "./Features";

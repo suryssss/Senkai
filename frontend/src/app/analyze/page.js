@@ -16,19 +16,33 @@ import jsPDF from "jspdf";
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
 
 const initialNodes = [
-    { id: "api-gateway", type: "serviceNode", position: { x: 100, y: 200 }, data: { label: "API Gateway", type: "api", capacity: 1000, load: 450 } },
-    { id: "user-service", type: "serviceNode", position: { x: 420, y: 80 }, data: { label: "User Service", type: "service", capacity: 500, load: 320 } },
-    { id: "auth-service", type: "serviceNode", position: { x: 420, y: 320 }, data: { label: "Auth Service", type: "auth", capacity: 300, load: 180 } },
-    { id: "database", type: "serviceNode", position: { x: 750, y: 200 }, data: { label: "PostgreSQL", type: "database", capacity: 800, load: 680 } },
-    { id: "redis-cache", type: "serviceNode", position: { x: 750, y: 380 }, data: { label: "Redis Cache", type: "cache", capacity: 2000, load: 400 } },
+    { id: "cdn-edge", type: "serviceNode", position: { x: -50, y: 250 }, data: { label: "CDN / WAF", type: "cdn", capacity: 50000, load: 1200 } },
+    { id: "load-balancer", type: "serviceNode", position: { x: 220, y: 250 }, data: { label: "Nginx Load Balancer", type: "loadbalancer", capacity: 10000, load: 1200 } },
+    { id: "api-gateway", type: "serviceNode", position: { x: 500, y: 250 }, data: { label: "API Gateway", type: "api", capacity: 5000, load: 1200 } },
+    { id: "auth-service", type: "serviceNode", position: { x: 800, y: 50 }, data: { label: "Auth Mesh", type: "auth", capacity: 2000, load: 450 } },
+    { id: "user-service", type: "serviceNode", position: { x: 800, y: 180 }, data: { label: "User Service", type: "service", capacity: 1500, load: 380 } },
+    { id: "order-service", type: "serviceNode", position: { x: 800, y: 320 }, data: { label: "Order Service", type: "service", capacity: 1200, load: 240 } },
+    { id: "search-service", type: "serviceNode", position: { x: 800, y: 460 }, data: { label: "Search Service", type: "service", capacity: 2500, load: 120 } },
+    { id: "redis-cluster", type: "serviceNode", position: { x: 1100, y: 50 }, data: { label: "Redis Cluster", type: "cache", capacity: 20000, load: 1500 } },
+    { id: "postgres-primary", type: "serviceNode", position: { x: 1100, y: 200 }, data: { label: "PostgreSQL Primary", type: "database", capacity: 2000, load: 850 } },
+    { id: "elasticsearch", type: "serviceNode", position: { x: 1100, y: 460 }, data: { label: "ElasticSearch", type: "database", capacity: 5000, load: 300 } },
+    { id: "kafka-bus", type: "serviceNode", position: { x: 1100, y: 330 }, data: { label: "Kafka Event Bus", type: "queue", capacity: 15000, load: 800 } },
+    { id: "inventory-worker", type: "serviceNode", position: { x: 1400, y: 330 }, data: { label: "Inventory Worker", type: "worker", capacity: 1000, load: 150 } },
 ];
 
 const initialEdges = [
-    { id: "e1", source: "api-gateway", target: "user-service", data: { latency: 15, percentage: 100 } },
-    { id: "e2", source: "api-gateway", target: "auth-service", data: { latency: 10, percentage: 100 } },
-    { id: "e3", source: "user-service", target: "database", data: { latency: 25, percentage: 70 } },
-    { id: "e4", source: "auth-service", target: "database", data: { latency: 20, percentage: 100 } },
-    { id: "e5", source: "auth-service", target: "redis-cache", data: { latency: 5, percentage: 30 } },
+    { id: "e-cdn-lb", source: "cdn-edge", target: "load-balancer", data: { latency: 45, percentage: 100 } },
+    { id: "e-lb-gtw", source: "load-balancer", target: "api-gateway", data: { latency: 5, percentage: 100 } },
+    { id: "e-gtw-auth", source: "api-gateway", target: "auth-service", data: { latency: 12, percentage: 100 } },
+    { id: "e-gtw-user", source: "api-gateway", target: "user-service", data: { latency: 15, percentage: 60 } },
+    { id: "e-gtw-order", source: "api-gateway", target: "order-service", data: { latency: 20, percentage: 30 } },
+    { id: "e-gtw-search", source: "api-gateway", target: "search-service", data: { latency: 50, percentage: 10 } },
+    { id: "e-auth-redis", source: "auth-service", target: "redis-cluster", data: { latency: 2, percentage: 100 } },
+    { id: "e-user-db", source: "user-service", target: "postgres-primary", data: { latency: 25, percentage: 100 } },
+    { id: "e-order-db", source: "order-service", target: "postgres-primary", data: { latency: 30, percentage: 100 } },
+    { id: "e-order-kafka", source: "order-service", target: "kafka-bus", data: { latency: 5, percentage: 100 } },
+    { id: "e-search-es", source: "search-service", target: "elasticsearch", data: { latency: 40, percentage: 100 } },
+    { id: "e-kafka-worker", source: "kafka-bus", target: "inventory-worker", data: { latency: 2, percentage: 100 } },
 ];
 
 const api = axios.create({
@@ -39,8 +53,36 @@ const api = axios.create({
 
 export default function AnalyzePage() {
     const { theme } = useTheme();
-    const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
-    const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
+    const [nodes, setNodes, onNodesChange] = useNodesState([]);
+    const [edges, setEdges, onEdgesChange] = useEdgesState([]);
+
+    useEffect(() => {
+        const savedNodes = localStorage.getItem("structflow_nodes");
+        const savedEdges = localStorage.getItem("structflow_edges");
+
+        if (savedNodes && savedEdges) {
+            try {
+                setNodes(JSON.parse(savedNodes));
+                setEdges(JSON.parse(savedEdges));
+                return;
+            } catch (e) {
+                console.error("Failed to load saved state:", e);
+            }
+        }
+
+        setNodes(initialNodes);
+        setEdges(initialEdges);
+    }, [setNodes, setEdges]);
+
+    useEffect(() => {
+        if (nodes.length > 0) {
+            localStorage.setItem("structflow_nodes", JSON.stringify(nodes));
+        }
+        if (edges.length > 0) {
+            localStorage.setItem("structflow_edges", JSON.stringify(edges));
+        }
+    }, [nodes, edges]);
+
     const [selectedNode, setSelectedNode] = useState(null);
     const [selectedEdge, setSelectedEdge] = useState(null);
     const [analysisResults, setAnalysisResults] = useState(null);
@@ -69,7 +111,6 @@ export default function AnalyzePage() {
         historyIndexRef.current = newHistory.length - 1;
     }, []);
 
-    // Undo function
     const handleUndo = useCallback(() => {
         if (historyIndexRef.current > 0) {
             isUndoRedoRef.current = true;
@@ -81,7 +122,6 @@ export default function AnalyzePage() {
         }
     }, [setNodes, setEdges]);
 
-    // Redo function
     const handleRedo = useCallback(() => {
         if (historyIndexRef.current < historyRef.current.length - 1) {
             isUndoRedoRef.current = true;
@@ -92,6 +132,7 @@ export default function AnalyzePage() {
             setToast({ message: "Redo", type: "info" });
         }
     }, [setNodes, setEdges]);
+
     useEffect(() => {
         const handleKeyDown = (e) => {
             if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) {
@@ -106,6 +147,7 @@ export default function AnalyzePage() {
         window.addEventListener('keydown', handleKeyDown);
         return () => window.removeEventListener('keydown', handleKeyDown);
     }, [handleUndo, handleRedo]);
+
     const saveTimeoutRef = useRef(null);
     useEffect(() => {
         if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
@@ -210,7 +252,6 @@ export default function AnalyzePage() {
             };
 
             const trafficResponse = await api.post("/api/traffic", trafficPayload);
-
             if (!trafficResponse.data?.success) {
                 throw new Error(trafficResponse.data?.message || "Traffic simulation failed");
             }
@@ -365,41 +406,112 @@ export default function AnalyzePage() {
         }
     }, [nodes, edges, totalTraffic, entryNodeId, activeSimulation, setNodes, clearSimulationState]);
 
-    const handleCascadeSimulation = useCallback(async () => {
+    const handleDESSimulation = useCallback(async () => {
         if (nodes.length === 0 || activeSimulation) return;
         setActiveSimulation('cascade');
         clearSimulationState();
-        const weakest = nodes.reduce((w, n) => {
-            const util = (n.data.load / n.data.capacity) * 100;
-            return util > (w?.util || 0) ? { node: n, util } : w;
-        }, null)?.node;
 
-        if (!weakest) { setActiveSimulation(null); return; }
-        const dependents = {};
-        edges.forEach((e) => { dependents[e.target] = [...(dependents[e.target] || []), e.source]; });
+        try {
+            const entryCap = nodes.find(n => n.id === (entryNodeId || nodes[0]?.id))?.data?.capacity || 5000;
 
-        const cascadeOrder = [{ id: weakest.id, order: 1 }];
-        const crashed = new Set([weakest.id]);
-        let queue = [weakest.id], order = 2;
+            const trafficWave = [
+                { t: 0, arrivals: Math.round(entryCap * 0.5) },
+                { t: 1000, arrivals: Math.round(entryCap * 1.0) },
+                { t: 2000, arrivals: Math.round(entryCap * 2.0) },
+                { t: 3000, arrivals: Math.round(entryCap * 5.0) },
+                { t: 4000, arrivals: Math.round(entryCap * 10.0) },
+            ];
 
-        while (queue.length) {
-            const next = [];
-            queue.forEach((id) => (dependents[id] || []).forEach((dep) => {
-                if (!crashed.has(dep)) { crashed.add(dep); cascadeOrder.push({ id: dep, order: order }); next.push(dep); }
-            }));
-            queue = next;
-            order++;
+            const desPayload = {
+                entry_node: entryNodeId || nodes[0]?.id,
+                nodes: nodes.map((n) => ({
+                    id: n.id,
+                    capacity: Number(n.data.capacity) || 0,
+                    base_latency: 50,
+                    max_queue: Number(n.data.capacity) * 2 || 200,
+                    cb_failure_rate: 0.5,
+                })),
+                edges: edges.map((e) => ({
+                    source: e.source,
+                    target: e.target,
+                    percentage: Number(e.data?.percentage) || 0,
+                })),
+                traffic_wave: trafficWave,
+                tick_ms: 1000,
+                max_sim_ms: 6000,
+                retry_attempts: 2,
+            };
+
+            const res = await api.post("/api/traffic/des", desPayload);
+            if (!res.data?.success) {
+                throw new Error(res.data?.error || "DES simulation failed");
+            }
+
+            const { timeline, firstFailure, cascadeEvents, trafficMultiplier, peakDesiredRps } = res.data;
+
+            for (let i = 0; i < timeline.length; i++) {
+                const tick = timeline[i];
+                await new Promise((r) => setTimeout(r, 1000));
+
+                setNodes((nds) =>
+                    nds.map((node) => {
+                        const summary = tick.services.find((n) => n.id === node.id);
+                        if (!summary) return node;
+
+                        let status = "safe";
+                        if (summary.health === "critical" || summary.health === "tripped") status = "crashed";
+                        else if (summary.health === "degraded") status = "danger";
+                        else if (summary.utilization >= 85) status = "warning";
+
+                        return {
+                            ...node,
+                            data: {
+                                ...node.data,
+                                simulatedLoad: summary.inFlight,
+                                simulatedQueue: summary.queueDepth,
+                                simulatedLatency: summary.avgLatencyMs,
+                                simulationStatus: status,
+                                simulationDuration: 8000,
+                                isWeakest: firstFailure?.nodeId === node.id,
+                                isCascadeAffected: cascadeEvents.some(e => e.nodeId === node.id),
+                            },
+                        };
+                    })
+                );
+            }
+
+            const multiplierLabel = trafficMultiplier > 1
+                ? ` (1 sim-event = ${Math.round(trafficMultiplier).toLocaleString()} real req)`
+                : "";
+            const peakLabel = peakDesiredRps
+                ? `Peak: ${peakDesiredRps.toLocaleString()} RPS${multiplierLabel}. `
+                : "";
+
+            if (firstFailure) {
+                setToast({
+                    message: `${peakLabel}First failure: ${firstFailure.nodeId} (${firstFailure.reason.toLowerCase()})`,
+                    type: "error",
+                });
+            } else {
+                setToast({
+                    message: `${peakLabel}System survived the traffic spike!`,
+                    type: "success",
+                });
+            }
+
+        } catch (err) {
+            console.error("DES simulation failed:", err);
+            setToast({
+                message: err.message || "Simulation failed",
+                type: "error",
+            });
+        } finally {
+            setTimeout(() => {
+                clearSimulationState();
+                setActiveSimulation(null);
+            }, 5000);
         }
-        for (const { id, order: num } of cascadeOrder) {
-            await new Promise((r) => setTimeout(r, num === 1 ? 400 : 700));
-            setNodes((nds) => nds.map((n) => n.id === id ? {
-                ...n,
-                data: { ...n.data, simulationStatus: "crashed", isCascadeAffected: true, cascadeOrder: num, isWeakest: num === 1, simulationDuration: 10000 },
-            } : n));
-        }
-
-        setTimeout(() => { clearSimulationState(); setActiveSimulation(null); }, 5000);
-    }, [nodes, edges, activeSimulation, setNodes, clearSimulationState]);
+    }, [nodes, edges, totalTraffic, entryNodeId, activeSimulation, setNodes, clearSimulationState]);
 
     const handleUpdateNode = useCallback((nodeId, updates) => {
         setNodes((nds) => nds.map((n) => n.id === nodeId ? { ...n, data: { ...n.data, ...updates } } : n));
@@ -621,7 +733,6 @@ export default function AnalyzePage() {
                             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="15 18 9 12 15 6" /></svg>
                         )}
                     </button>
-                    {/* Sidebar */}
                     <div style={{
                         width: isSidebarOpen ? "340px" : "0px",
                         transition: "width 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
@@ -640,7 +751,7 @@ export default function AnalyzePage() {
                                 onDeleteNode={handleDeleteNode}
                                 onDeleteEdge={handleDeleteEdge}
                                 onStressTest={handleStressTest}
-                                onCascadeSimulation={handleCascadeSimulation}
+                                onCascadeSimulation={handleDESSimulation}
                                 activeSimulation={activeSimulation}
                             />
                         </div>

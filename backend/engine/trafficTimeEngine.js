@@ -1,4 +1,5 @@
 const { calculateUtilization } = require("./graphUtils");
+
 function simulateTrafficOverTime({
     trafficSteps,
     entryNode,
@@ -17,11 +18,13 @@ function simulateTrafficOverTime({
     if (!nodeIds.has(entryNode)) {
         throw new Error(`Entry node '${entryNode}' not found in nodes`);
     }
+
     const normalizedEdges = edges.map((e) => ({
         from: e.from,
         to: e.to,
         percentage: Number(e.percentage) || 0,
     }));
+
     const nodeQueue = {};
     nodes.forEach((n) => {
         nodeQueue[n.id] = 0;
@@ -86,6 +89,7 @@ function simulateTrafficOverTime({
                 queue.push(to);
             }
         }
+
         let stepRetryTraffic = 0;
         const nodeResults = nodes.map((node) => {
             const load = Math.round(nodeLoad[node.id] || 0);
@@ -109,6 +113,7 @@ function simulateTrafficOverTime({
             } else if (utilization >= 0.6) {
                 status = "warning";
             }
+
             if (latency > timeoutMs && load > 0) {
                 const failed = load * failureRate;
                 const retries = failed * retryRate;
@@ -125,6 +130,7 @@ function simulateTrafficOverTime({
                 latency,
             };
         });
+
         const hasFailure = nodeResults.some(
             (n) => n.status === "critical" || n.utilization > 1 || n.queue > n.capacity
         );
@@ -172,4 +178,3 @@ function simulateTrafficOverTime({
 module.exports = {
     simulateTrafficOverTime,
 };
-
