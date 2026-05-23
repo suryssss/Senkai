@@ -26,6 +26,11 @@ app.get("/", (req, res) => {
 
 const PORT = process.env.PORT;
 
+app.use((err, req, res, next) => {
+    console.error(err.stack);
+    res.status(401).json({ error: 'Unauthenticated or invalid token' });
+});
+
 app.listen(PORT, () => {
     console.log(` Senkai API running on port ${PORT}`);
     console.log(` Groq AI: ${process.env.GROQ_API_KEY ? "✓ Configured" : "✗ Not configured (set GROQ_API_KEY in .env)"}`);
