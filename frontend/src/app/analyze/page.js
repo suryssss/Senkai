@@ -10,6 +10,8 @@ import Sidebar from "@/components/canvas/Sidebar";
 import ComponentPalette from "@/components/canvas/ComponentPalette";
 import Toast from "@/components/ui/Toast";
 import { useTheme } from "@/context/ThemeContext";
+import { SaveProjectModal, LoadProjectModal } from "@/components/ui/ProjectModal";
+import { useAuth } from "@clerk/nextjs";
 import { toPng } from "html-to-image";
 import jsPDF from "jspdf";
 
@@ -53,6 +55,7 @@ const api = axios.create({
 
 export default function AnalyzePage() {
     const { theme } = useTheme();
+    const { getToken, isSignedIn } = useAuth();
     const [nodes, setNodes, onNodesChange] = useNodesState([]);
     const [edges, setEdges, onEdgesChange] = useEdgesState([]);
 
@@ -94,6 +97,8 @@ export default function AnalyzePage() {
     const [isSidebarOpen, setIsSidebarOpen] = useState(true);
     const [totalTraffic, setTotalTraffic] = useState(10000);
     const [entryNodeId, setEntryNodeId] = useState(initialNodes[0]?.id || "");
+    const [isSaveModalOpen, setIsSaveModalOpen] = useState(false);
+    const [isLoadModalOpen, setIsLoadModalOpen] = useState(false);
     const isAnalyzingRef = useRef(false);
     const historyRef = useRef([{ nodes: initialNodes, edges: initialEdges }]);
     const historyIndexRef = useRef(0);
@@ -199,34 +204,78 @@ export default function AnalyzePage() {
     }, [setNodes]);
 
     const handleSave = useCallback(() => {
+        if (!isSignedIn) {
+            setToast({ message: "Please sign in to save your architecture.", type: "error" });
+            return;
+        }
+        setIsSaveModalOpen(true);
+    }, [isSignedIn]);
+
+    const handleSaveSubmit = useCallback(async (name) => {
         try {
-            const data = JSON.stringify({ nodes, edges });
-            localStorage.setItem("structflow_layout", data);
-            setToast({ message: "Layout saved successfully!", type: "success" });
+            const data = { nodes, edges };
+            const payload = {
+                name,
+                data,
+                analysisData: analysisResults,
+                aiInsights: analysisResults?.aiAdvice
+            };
+            const token = await getToken();
+            await api.post("/api/projects", payload, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            setToast({ message: "Project saved successfully to database!", type: "success" });
+            setIsSaveModalOpen(false);
         } catch (e) {
             console.error("Save failed:", e);
-            setToast({ message: "Failed to save layout.", type: "error" });
+            setToast({ message: "Failed to save project.", type: "error" });
         }
-    }, [nodes, edges]);
+    }, [nodes, edges, analysisResults, getToken]);
 
     const handleLoad = useCallback(() => {
+        if (!isSignedIn) {
+            setToast({ message: "Please sign in to load your architectures.", type: "error" });
+            return;
+        }
+        setIsLoadModalOpen(true);
+    }, [isSignedIn]);
+
+    const handleLoadSubmit = useCallback(async (id) => {
         try {
-            const data = localStorage.getItem("structflow_layout");
-            if (!data) {
-                setToast({ message: "No saved layout found.", type: "error" });
-                return;
-            }
-            const { nodes: loadedNodes, edges: loadedEdges } = JSON.parse(data);
+            const token = await getToken();
+            const res = await api.get(`/api/projects/${id}`, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            const project = res.data.project;
+            if (!project) throw new Error("Not found");
+            const parsedData = typeof project.data === 'string' ? JSON.parse(project.data) : project.data;
+            const { nodes: loadedNodes, edges: loadedEdges } = parsedData;
             setNodes(loadedNodes || []);
             setEdges(loadedEdges || []);
-            setAnalysisResults(null);
+            
+            let loadedAnalysis = null;
+            if (project.analysisData) {
+                loadedAnalysis = typeof project.analysisData === 'string' ? JSON.parse(project.analysisData) : project.analysisData;
+            }
+            setAnalysisResults(loadedAnalysis);
             clearSimulationState();
-            setToast({ message: "Layout loaded successfully!", type: "success" });
+            setToast({ message: `Loaded project "${project.name}"!`, type: "success" });
+            setIsLoadModalOpen(false);
         } catch (e) {
             console.error("Load failed:", e);
-            setToast({ message: "Failed to load layout.", type: "error" });
+            setToast({ message: "Failed to load project.", type: "error" });
         }
-    }, [setNodes, setEdges, clearSimulationState]);
+    }, [setNodes, setEdges, clearSimulationState, getToken]);
+
+    useEffect(() => {
+        if (typeof window !== "undefined" && isSignedIn) {
+            const params = new URLSearchParams(window.location.search);
+            const loadId = params.get("load");
+            if (loadId) {
+                handleLoadSubmit(loadId);
+            }
+        }
+    }, [isSignedIn, handleLoadSubmit]);
 
     const handleAnalyze = useCallback(async () => {
         if (nodes.length === 0 || isAnalyzingRef.current) return;
@@ -277,6 +326,7 @@ export default function AnalyzePage() {
 
             setNodes(nodesWithTraffic);
             const analyzePayload = {
+                entryNodeId: entryNodeId || nodes[0]?.id,
                 nodes: nodesWithTraffic.map((n) => ({
                     id: n.id,
                     capacity: Number(n.data.capacity) || 0,
@@ -760,6 +810,8 @@ export default function AnalyzePage() {
             </div>
 
             {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
+            <SaveProjectModal isOpen={isSaveModalOpen} onClose={() => setIsSaveModalOpen(false)} onSave={handleSaveSubmit} />
+            <LoadProjectModal isOpen={isLoadModalOpen} onClose={() => setIsLoadModalOpen(false)} onLoad={handleLoadSubmit} />
         </div>
     );
 }

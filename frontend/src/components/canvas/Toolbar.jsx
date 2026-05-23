@@ -2,6 +2,8 @@
 
 import { useState, useEffect } from "react";
 import { useTheme } from "@/context/ThemeContext";
+import { UserButton, SignInButton, useAuth } from "@clerk/nextjs";
+import Link from 'next/link';
 
 const RiskMeter = ({ score, risk }) => {
     const getColor = () => {
@@ -50,6 +52,7 @@ const Toolbar = ({
     nodes,
 }) => {
     const { theme, toggleTheme } = useTheme();
+    const { isLoaded, isSignedIn } = useAuth();
     const riskScore = analysisResults?.overallRisk?.riskScore ?? null;
     const riskLevel = analysisResults?.overallRisk?.overallRisk ?? null;
 
@@ -337,6 +340,48 @@ const Toolbar = ({
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" /></svg>
                     )}
                 </button>
+
+                <div style={{ height: "24px", width: "1px", background: "var(--border-subtle)" }} />
+
+                {isLoaded && isSignedIn && (
+                    <>
+                        <a href="/dashboard" style={{
+                            textDecoration: "none",
+                            color: "var(--text-secondary)",
+                            fontSize: "12px",
+                            fontWeight: "500",
+                            padding: "6px 12px",
+                            border: "1px solid var(--border-subtle)",
+                            borderRadius: "6px",
+                            marginRight: "8px",
+                            transition: "all 0.2s ease"
+                        }}
+                        onMouseOver={(e) => { e.currentTarget.style.background = "var(--bg-tertiary)"; e.currentTarget.style.color = "var(--text-primary)"; }}
+                        onMouseOut={(e) => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = "var(--text-secondary)"; }}
+                        >
+                            Dashboard
+                        </a>
+                        <UserButton afterSignOutUrl="/" />
+                    </>
+                )}
+                
+                {isLoaded && !isSignedIn && (
+                    <Link href="/sign-in" style={{ textDecoration: 'none' }}>
+                        <button style={{
+                            padding: "6px 12px",
+                            fontSize: "12px",
+                            fontWeight: "500",
+                            color: "white",
+                            background: "var(--accent-primary)",
+                            border: "none",
+                            borderRadius: "6px",
+                            cursor: "pointer",
+                            transition: "background 0.2s ease"
+                        }}>
+                            Sign In
+                        </button>
+                    </Link>
+                )}
             </div>
         </header>
     );

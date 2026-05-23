@@ -51,32 +51,41 @@ function simulateTraffic({ totalTraffic, entryNode, nodes, edges, maxVisitsPerNo
         });
     });
 
-    nodeLoad[entryNode] = totalTraffic;
+    let currentNodeLoad = {};
+    nodes.forEach((n) => {
+        currentNodeLoad[n.id] = n.id === entryNode ? totalTraffic : 0;
+    });
 
-    const visitCount = {};
-    const queue = [entryNode];
+    const maxIterations = 50;
+    const epsilon = 0.1;
 
-    while (queue.length > 0) {
-        const current = queue.shift();
+    for (let iter = 0; iter < maxIterations; iter++) {
+        const nextLoad = {};
+        nodes.forEach((n) => {
+            nextLoad[n.id] = n.id === entryNode ? totalTraffic : 0;
+        });
 
-        visitCount[current] = (visitCount[current] || 0) + 1;
-        if (visitCount[current] > maxVisitsPerNode) {
-            continue;
+        for (const from in graph) {
+            const currentLoad = currentNodeLoad[from] || 0;
+            if (currentLoad <= 0) continue;
+
+            for (const { to, percentage } of graph[from]) {
+                if (!to || !Number.isFinite(percentage) || percentage <= 0) continue;
+                nextLoad[to] += currentLoad * (percentage / 100);
+            }
         }
 
-        const currentLoad = nodeLoad[current] || 0;
-        const neighbors = graph[current] || [];
+        let maxDiff = 0;
+        nodes.forEach((n) => {
+            maxDiff = Math.max(maxDiff, Math.abs(nextLoad[n.id] - (currentNodeLoad[n.id] || 0)));
+        });
 
-        for (const { to, percentage } of neighbors) {
-            if (!to || !Number.isFinite(percentage) || percentage <= 0) continue;
+        currentNodeLoad = nextLoad;
+        if (maxDiff < epsilon) break;
+    }
 
-            const trafficToChild = currentLoad * (percentage / 100);
-            if (!Number.isFinite(trafficToChild) || trafficToChild <= 0) continue;
-
-            if (nodeLoad[to] === undefined) nodeLoad[to] = 0;
-            nodeLoad[to] += trafficToChild;
-            queue.push(to);
-        }
+    for (const id in currentNodeLoad) {
+        nodeLoad[id] = currentNodeLoad[id];
     }
 
     const nodeSummaries = nodes.map((node) => {

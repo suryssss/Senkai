@@ -42,9 +42,12 @@ function dfs(start, graph, visited = new Set()) {
 function dfsWithFailed(node, graph, failed, visited) {
     if (visited.has(node)) return;
     visited.add(node);
+    
+    if (failed.has(node)) return;
+
     const neighbors = graph[node] || [];
     neighbors.forEach(n => {
-        if (!failed.has(n)) dfsWithFailed(n, graph, failed, visited);
+        dfsWithFailed(n, graph, failed, visited);
     });
 }
 function calculateUtilization(load, capacity) {

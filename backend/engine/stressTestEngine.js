@@ -3,8 +3,8 @@ const { calculateUtilization, getStatus } = require('./graphUtils');
 function simulateLoadIncrease(nodes, percentage) {
     const multiplier = 1 + percentage / 100;
     const simulation = nodes.map(node => {
-        const capacity = Number(node.capacity) || 0;
-        const currentLoad = Number(node.load) || 0;
+        const capacity = Math.max(1, Number(node.capacity) || 100);
+        const currentLoad = Math.max(0, Number(node.load) || 0);
 
         const newLoad = Math.round(currentLoad * multiplier);
         const utilization = calculateUtilization(newLoad, capacity);

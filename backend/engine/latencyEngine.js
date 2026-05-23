@@ -21,11 +21,10 @@ function dfsLatency(node, graph, currentLatency, visited) {
     return maxLatency;
 }
 
-function detectLatencyRisk(nodes, edges) {
+function detectLatencyRisk(nodes, edges, entryNodeId) {
     if (!nodes.length) return { totalLatency: 0, risk: "low" };
 
-    const startNode = "api-gateway";
-    const entryNode = nodes.find(n => n.id === startNode) ? startNode : nodes[0].id;
+    const entryNode = entryNodeId || nodes[0].id;
 
     const graph = buildGraphWithLatency(edges);
     const totalLatency = dfsLatency(entryNode, graph, 0, new Set());

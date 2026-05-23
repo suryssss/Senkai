@@ -6,8 +6,8 @@ function findWeakestService(nodes) {
     let minRemaining = Infinity;
 
     nodes.forEach(node => {
-        const capacity = Number(node.capacity);
-        const load = Number(node.load);
+        const capacity = Math.max(1, Number(node.capacity) || 100);
+        const load = Math.max(0, Number(node.load) || 0);
 
         const remaining = capacity - load;
 

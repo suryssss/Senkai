@@ -1,9 +1,9 @@
 const { buildGraphExcluding, dfs } = require('./graphUtils');
 
-function detectSpof(nodes, edges) {
+function detectSpof(nodes, edges, entryNodeId) {
     if (!nodes.length) return [];
 
-    const startNode = nodes[0].id;
+    const startNode = entryNodeId || nodes[0].id;
     const totalNodes = nodes.length;
 
     return nodes.map(node => {

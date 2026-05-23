@@ -598,3 +598,38 @@ select {
     height: 100vh;
     overflow: hidden;
 }
+
+/* Override Clerk's Development Badge and Branding */
+div.cl-internal-b3al4t,
+div.cl-internal-1dauvpw,
+a[href*="clerk.com?utm_source=clerk"] {
+    display: none !important;
+}
+
+/* Specifically target the 'Secured by Clerk' block but keep the sign up link */
+.cl-footer > div:last-child {
+    display: none !important;
+}
+
+/* Specifically hide the floating dev badge and dashboard sidebar dev badge */
+div[style*="position: fixed"][style*="bottom:"],
+.cl-userProfile .cl-navbar > div:last-child {
+    display: none !important;
+}
+
+/* Force OTP and all inputs to have white text */
+.cl-root input,
+.cl-otpCodeFieldInput,
+.cl-formFieldInput {
+    color: #ffffff !important;
+}
+
+/* Force white text in popovers */
+.cl-userButtonPopoverCard *,
+.cl-userButtonPopoverActionButtonText,
+.cl-userPreviewMainIdentifier {
+    color: #ffffff !important;
+}
+.cl-userPreviewSecondaryIdentifier {
+    color: #a1a1aa !important;
+}

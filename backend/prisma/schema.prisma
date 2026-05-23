@@ -1,0 +1,21 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Project {
+  id        String   @id @default(uuid())
+  userId    String
+  name      String
+  data         String   // stringified JSON of nodes and edges
+  analysisData String?  // stringified JSON of analysis results
+  aiInsights   String?  // stringified JSON of ai insights
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([userId])
+}
