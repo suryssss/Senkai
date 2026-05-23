@@ -5,7 +5,8 @@ const isProtectedRoute = createRouteMatcher(['/dashboard(.*)'])
 const clerkMw = clerkMiddleware(async (auth, req) => {
   console.log("Middleware checking route:", req.url)
   if (isProtectedRoute(req)) {
-    await auth().protect()
+    const authObj = await auth()
+    await authObj.protect()
   }
 })
 
