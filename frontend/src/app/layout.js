@@ -26,19 +26,19 @@ export default function RootLayout({ children }) {
       appearance={{
         baseTheme: dark,
         variables: {
-          colorPrimary: '#8b5cf6', // matching var(--accent-primary)
-          colorBackground: '#0a0a0a', // matching var(--bg-primary)
-          colorInputBackground: '#111111', // matching var(--bg-secondary)
-          colorInputText: '#ffffff', // forced white
-          colorText: '#ffffff', // forced white
-          colorTextSecondary: '#a1a1aa', // light gray
+          colorPrimary: '#8b5cf6',
+          colorBackground: '#0a0a0a',
+          colorInputBackground: '#111111',
+          colorInputText: '#ffffff',
+          colorText: '#ffffff',
+          colorTextSecondary: '#a1a1aa',
           borderRadius: '8px',
         },
         elements: {
           card: {
             boxShadow: '0 4px 20px rgba(0, 0, 0, 0.4)',
-            border: '1px solid #27272a', // var(--border-subtle)
-            background: '#0a0a0a', // forcing background to match
+            border: '1px solid #27272a',
+            background: '#0a0a0a',
           },
           headerTitle: { color: '#ffffff' },
           headerSubtitle: { color: '#a1a1aa' },
@@ -57,7 +57,7 @@ export default function RootLayout({ children }) {
           userPreviewMainIdentifier: { color: '#ffffff' },
           userPreviewSecondaryIdentifier: { color: '#a1a1aa' },
           userButtonPopoverFooter: { display: 'none' },
-          badge: { display: 'none' }, // Try hiding dev badge via API
+          badge: { display: 'none' },
           scrollBox: { paddingBottom: 0 },
         }
       }}
