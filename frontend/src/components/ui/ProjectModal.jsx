@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
+import { useAuth } from '@clerk/nextjs';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
 
@@ -28,25 +29,39 @@ export const SaveProjectModal = ({ isOpen, onClose, onSave }) => {
     );
 };
 
-import { useAuth } from '@clerk/nextjs';
-
 export const LoadProjectModal = ({ isOpen, onClose, onLoad }) => {
     const [projects, setProjects] = useState([]);
     const [loading, setLoading] = useState(true);
     const { getToken } = useAuth();
 
-    useEffect(() => {
+    const [prevIsOpen, setPrevIsOpen] = useState(isOpen);
+    if (isOpen !== prevIsOpen) {
+        setPrevIsOpen(isOpen);
         if (isOpen) {
             setLoading(true);
-            getToken().then(token => {
-                axios.get(`${API_BASE_URL}/api/projects`, {
-                    headers: { Authorization: `Bearer ${token}` }
-                })
-                .then(res => setProjects(res.data.projects || []))
-                .catch(err => console.error("Failed to load projects", err))
-                .finally(() => setLoading(false));
-            });
         }
+    }
+
+    useEffect(() => {
+        if (!isOpen) return;
+
+        let isMounted = true;
+        getToken().then(token => {
+            return axios.get(`${API_BASE_URL}/api/projects`, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+        })
+        .then(res => {
+            if (isMounted) setProjects(res.data.projects || []);
+        })
+        .catch(err => console.error("Failed to load projects", err))
+        .finally(() => {
+            if (isMounted) setLoading(false);
+        });
+
+        return () => {
+            isMounted = false;
+        };
     }, [isOpen, getToken]);
 
     if (!isOpen) return null;

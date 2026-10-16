@@ -28,7 +28,7 @@ const Canvas = ({ nodes, edges, onNodesChange, onEdgesChange, onConnect, onNodeC
     }), [edgeColor, isDark]);
 
     return (
-        <div style={{ flex: 1, height: "100%", position: "relative" }}>
+        <div id="canvas-export-container" style={{ flex: 1, height: "100%", position: "relative" }}>
             <div
                 style={{
                     position: "absolute",
@@ -64,7 +64,7 @@ const Canvas = ({ nodes, edges, onNodesChange, onEdgesChange, onConnect, onNodeC
                 snapGrid={[20, 20]}
                 connectionLineStyle={{ stroke: "#6366f1", strokeWidth: 2.5 }}
                 connectionLineType="smoothstep"
-                deleteKeyCode={["Backspace", "Delete"]}
+                deleteKeyCode={["Delete"]}
                 panOnScroll
                 panOnDrag={[1, 2]}
                 minZoom={0.1}

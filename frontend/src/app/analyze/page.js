@@ -561,7 +561,7 @@ export default function AnalyzePage() {
                 setActiveSimulation(null);
             }, 5000);
         }
-    }, [nodes, edges, totalTraffic, entryNodeId, activeSimulation, setNodes, clearSimulationState]);
+    }, [nodes, edges, entryNodeId, activeSimulation, setNodes, clearSimulationState]);
 
     const handleUpdateNode = useCallback((nodeId, updates) => {
         setNodes((nds) => nds.map((n) => n.id === nodeId ? { ...n, data: { ...n.data, ...updates } } : n));
@@ -634,13 +634,14 @@ export default function AnalyzePage() {
     }, [reactFlowInstance, setNodes]);
 
     const downloadReport = useCallback(async () => {
-        const input = document.getElementById("report-container");
+        const input = document.getElementById("canvas-export-container") || document.getElementById("report-container");
         if (!input) return;
 
         setToast({ message: "Generating report...", type: "success" });
 
         try {
-            const imgData = await toPng(input, { cacheBust: true, pixelRatio: 2, backgroundColor: "#ffffff" });
+            const exportBg = theme === "dark" ? "#09090b" : "#f8f8f8";
+            const imgData = await toPng(input, { cacheBust: true, pixelRatio: 2, backgroundColor: exportBg });
 
             const pdf = new jsPDF("landscape", "px", "a4");
             const pdfWidth = pdf.internal.pageSize.getWidth();
@@ -658,6 +659,14 @@ export default function AnalyzePage() {
 
             pdf.addImage(imgData, "PNG", 20, 20, imgWidth, imgHeight);
 
+            const cleanAscii = (str) => {
+                if (!str) return "";
+                return String(str)
+                    .replace(/→/g, "->")
+                    .replace(/←/g, "<-")
+                    .replace(/[^\x00-\x7F]/g, " ");
+            };
+
             if (analysisResults) {
                 pdf.addPage();
                 pdf.setFontSize(22);
@@ -671,7 +680,7 @@ export default function AnalyzePage() {
                     pdf.setFontSize(12);
                     let y = 120;
                     analysisResults.suggestions.forEach(s => {
-                        const splitText = pdf.splitTextToSize(`• ${s}`, pdfWidth - 40);
+                        const splitText = pdf.splitTextToSize(`- ${cleanAscii(s)}`, pdfWidth - 40);
                         pdf.text(splitText, 30, y);
                         y += (splitText.length * 15) + 5;
                     });
@@ -685,23 +694,26 @@ export default function AnalyzePage() {
                     pdf.setFontSize(12);
 
                     analysisResults.aiAdvice.suggestions.forEach(s => {
-                        pdf.setFont("helvetica", "bold");
-                        pdf.text(`${s.title} (${s.severity})`, 20, y);
-                        y += 15;
-                        pdf.setFont("helvetica", "normal");
+                        const titleText = cleanAscii(`${s.title} (${s.severity})`);
+                        const problem = pdf.splitTextToSize(`Problem: ${cleanAscii(s.problem)}`, pdfWidth - 40);
+                        const solution = pdf.splitTextToSize(`Solution: ${cleanAscii(s.solution)}`, pdfWidth - 40);
+                        const blockHeight = 15 + (problem.length * 14) + 5 + (solution.length * 14) + 15;
 
-                        const problem = pdf.splitTextToSize(`Problem: ${s.problem}`, pdfWidth - 40);
-                        pdf.text(problem, 20, y);
-                        y += (problem.length * 14) + 5;
-
-                        const solution = pdf.splitTextToSize(`Solution: ${s.solution}`, pdfWidth - 40);
-                        pdf.text(solution, 20, y);
-                        y += (solution.length * 14) + 15;
-
-                        if (y > pdfHeight - 40) {
+                        if (y + blockHeight > pdfHeight - 30) {
                             pdf.addPage();
                             y = 40;
                         }
+
+                        pdf.setFont("helvetica", "bold");
+                        pdf.text(titleText, 20, y);
+                        y += 15;
+                        pdf.setFont("helvetica", "normal");
+
+                        pdf.text(problem, 20, y);
+                        y += (problem.length * 14) + 5;
+
+                        pdf.text(solution, 20, y);
+                        y += (solution.length * 14) + 15;
                     });
                 }
             }
@@ -712,7 +724,7 @@ export default function AnalyzePage() {
             console.error("PDF generation failed:", e);
             setToast({ message: "Failed to generate report", type: "error" });
         }
-    }, [analysisResults]);
+    }, [analysisResults, theme]);
 
     return (
         <div className="analyze-page" style={{ display: "flex", flexDirection: "column", height: "100vh", background: "var(--bg-primary)", transition: "background 0.3s ease" }}>

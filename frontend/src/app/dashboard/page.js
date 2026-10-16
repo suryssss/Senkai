@@ -74,7 +74,7 @@ export default function Dashboard() {
                             borderRadius: "12px", 
                             textAlign: "center" 
                         }}>
-                            <p style={{ color: "var(--text-muted)", marginBottom: "16px" }}>You haven't saved any projects yet.</p>
+                            <p style={{ color: "var(--text-muted)", marginBottom: "16px" }}>You haven&apos;t saved any projects yet.</p>
                             <button 
                                 onClick={() => router.push("/analyze")}
                                 style={{

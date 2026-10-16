@@ -26,18 +26,21 @@ function simulateTrafficOverTime({
     }));
 
     const nodeQueue = {};
+    const carryRetryPerNode = {};
     nodes.forEach((n) => {
         nodeQueue[n.id] = 0;
+        carryRetryPerNode[n.id] = 0;
     });
 
     const steps = [];
     let stableUntil = null;
     let firstFailure = null;
-    let carryRetryTraffic = 0;
 
     for (const step of trafficSteps) {
         const baseTraffic = Number(step.total_traffic) || 0;
-        const effectiveTraffic = baseTraffic + carryRetryTraffic;
+        // Entry gateway receives external base traffic + client retries directed at the gateway
+        const entryRetryTraffic = carryRetryPerNode[entryNode] || 0;
+        const effectiveTraffic = baseTraffic + entryRetryTraffic;
         const graph = {};
         const nodeLoad = {};
 
@@ -64,7 +67,7 @@ function simulateTrafficOverTime({
 
         let currentNodeLoad = {};
         nodes.forEach((n) => {
-            currentNodeLoad[n.id] = n.id === entryNode ? effectiveTraffic : 0;
+            currentNodeLoad[n.id] = n.id === entryNode ? effectiveTraffic : (carryRetryPerNode[n.id] || 0);
         });
 
         const maxIterations = 50;
@@ -73,7 +76,7 @@ function simulateTrafficOverTime({
         for (let iter = 0; iter < maxIterations; iter++) {
             const nextLoad = {};
             nodes.forEach((n) => {
-                nextLoad[n.id] = n.id === entryNode ? effectiveTraffic : 0;
+                nextLoad[n.id] = n.id === entryNode ? effectiveTraffic : (carryRetryPerNode[n.id] || 0);
             });
 
             for (const from in graph) {
@@ -99,7 +102,10 @@ function simulateTrafficOverTime({
             nodeLoad[id] = currentNodeLoad[id];
         }
 
+        const nextRetryPerNode = {};
+        nodes.forEach((n) => { nextRetryPerNode[n.id] = 0; });
         let stepRetryTraffic = 0;
+
         const nodeResults = nodes.map((node) => {
             const load = Math.round(nodeLoad[node.id] || 0);
             const capacity = Number(node.capacity) || 0;
@@ -107,7 +113,9 @@ function simulateTrafficOverTime({
 
             const baseLatency = Number(node.base_latency) || 0;
             const overload = capacity > 0 ? Math.max(0, load - capacity) : 0;
-            nodeQueue[node.id] = nodeQueue[node.id] + overload;
+            const spareCapacity = capacity > 0 ? Math.max(0, capacity - load) : 0;
+            // Drain queue by available spare capacity when load < capacity (BUG-13)
+            nodeQueue[node.id] = Math.max(0, nodeQueue[node.id] + overload - spareCapacity);
             const queueSize = nodeQueue[node.id];
 
             const latency = capacity > 0
@@ -126,6 +134,8 @@ function simulateTrafficOverTime({
             if (latency > timeoutMs && load > 0) {
                 const failed = load * failureRate;
                 const retries = failed * retryRate;
+                // Track retry traffic targeting this specific failing service (BUG-14)
+                nextRetryPerNode[node.id] = retries;
                 stepRetryTraffic += retries;
             }
 
@@ -138,6 +148,11 @@ function simulateTrafficOverTime({
                 queue: queueSize,
                 latency,
             };
+        });
+
+        // Pass retries forward to next step per node
+        nodes.forEach((n) => {
+            carryRetryPerNode[n.id] = nextRetryPerNode[n.id] || 0;
         });
 
         const hasFailure = nodeResults.some(
@@ -173,8 +188,6 @@ function simulateTrafficOverTime({
             effective_traffic: effectiveTraffic,
             node_results: nodeResults,
         });
-
-        carryRetryTraffic = stepRetryTraffic;
     }
 
     return {

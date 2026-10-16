@@ -61,10 +61,11 @@ const Toolbar = ({
         totalTraffic != null ? String(totalTraffic) : ""
     );
 
-    useEffect(() => {
-        // Keep local display in sync when parent updates totalTraffic (e.g. load preset)
+    const [prevTotalTraffic, setPrevTotalTraffic] = useState(totalTraffic);
+    if (totalTraffic !== prevTotalTraffic) {
+        setPrevTotalTraffic(totalTraffic);
         setTrafficInput(totalTraffic != null ? String(totalTraffic) : "");
-    }, [totalTraffic]);
+    }
 
     return (
         <header style={{ height: "56px", background: "var(--bg-secondary)", borderBottom: "1px solid var(--border-subtle)", display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 20px", position: "relative", zIndex: 100 }}>

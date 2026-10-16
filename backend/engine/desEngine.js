@@ -426,30 +426,38 @@ function runDES({
         state.latencySamples.push(evt.hopLatency);
         state.health = computeHealth(state);
 
-        const neighbours = adj.get(evt.nodeId) || [];
+        const neighbours = (adj.get(evt.nodeId) || []).filter(nb => nb.weight > 0);
+        if (neighbours.length === 0) return;
+
+        const hopCount = (evt.hopCount || 0) + 1;
+        if (hopCount > 50) {
+            logEvent(evt.time, "DROP", { requestId: evt.requestId, nodeId: evt.nodeId, reason: "loop_guard" });
+            return;
+        }
+
+        // Draw a single random roll in [0, 100) and partition across cumulative branch weights (CDF)
+        const roll = Math.random() * 100;
+        let cumulative = 0;
+        let selectedTarget = neighbours[neighbours.length - 1].to;
+
         for (const nb of neighbours) {
-            if (!nb.weight || nb.weight <= 0) continue;
-
-            const hopCount = (evt.hopCount || 0) + 1;
-            if (hopCount > 50) {
-                logEvent(evt.time, "DROP", { requestId: evt.requestId, nodeId: evt.nodeId, reason: "loop_guard" });
-                continue;
-            }
-
-            const roll = Math.random() * 100;
-            if (roll <= nb.weight) {
-                eventQueue.push({
-                    time: evt.time,
-                    type: "ARRIVE",
-                    requestId: evt.requestId,
-                    nodeId: nb.to,
-                    startTime: evt.startTime,
-                    hopLatency: evt.hopLatency,
-                    retriesLeft: evt.retriesLeft,
-                    hopCount,
-                });
+            cumulative += nb.weight;
+            if (roll < cumulative) {
+                selectedTarget = nb.to;
+                break;
             }
         }
+
+        eventQueue.push({
+            time: evt.time,
+            type: "ARRIVE",
+            requestId: evt.requestId,
+            nodeId: selectedTarget,
+            startTime: evt.startTime,
+            hopLatency: evt.hopLatency,
+            retriesLeft: evt.retriesLeft,
+            hopCount,
+        });
     }
 
     function handleTimeout(evt) {

@@ -6,16 +6,17 @@ const Toast = ({ message, type = "success", onClose, duration = 3000 }) => {
     const [isVisible, setIsVisible] = useState(false);
 
     useEffect(() => {
-        // Trigger enter animation
-        setIsVisible(true);
+        const raf = requestAnimationFrame(() => setIsVisible(true));
 
-        // Auto-close timer
         const timer = setTimeout(() => {
             setIsVisible(false);
-            setTimeout(onClose, 300); // Wait for exit animation
+            setTimeout(onClose, 300); 
         }, duration);
 
-        return () => clearTimeout(timer);
+        return () => {
+            cancelAnimationFrame(raf);
+            clearTimeout(timer);
+        };
     }, [duration, onClose]);
 
     const isSuccess = type === "success";
@@ -45,7 +46,7 @@ const Toast = ({ message, type = "success", onClose, duration = 3000 }) => {
                 transform: isVisible ? "translateY(0)" : "translateY(20px)",
                 opacity: isVisible ? 1 : 0,
                 transition: "all 0.3s cubic-bezier(0.16, 1, 0.3, 1)",
-                pointerEvents: "none", // Avoid blocking clicks while fading out
+                pointerEvents: "none", 
             }}
         >
             <div

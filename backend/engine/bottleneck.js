@@ -1,6 +1,6 @@
 const { calculateUtilization, getStatus } = require('./graphUtils');
 
-function detectBottleneck(nodes) {
+function detectBottleneck(nodes = []) {
     if (!nodes || nodes.length === 0) return [];
 
     return nodes.map(node => {
@@ -12,7 +12,7 @@ function detectBottleneck(nodes) {
             service: node.id,
             load,
             capacity,
-            utilization: (utilization * 100).toFixed(1) + "%",
+            utilization: Number.isFinite(utilization) ? (utilization * 100).toFixed(1) + "%" : "100.0%+",
             status: getStatus(utilization)
         };
     });

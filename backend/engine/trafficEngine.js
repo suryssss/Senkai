@@ -51,41 +51,52 @@ function simulateTraffic({ totalTraffic, entryNode, nodes, edges, maxVisitsPerNo
         });
     });
 
-    let currentNodeLoad = {};
+    let currentWave = {};
     nodes.forEach((n) => {
-        currentNodeLoad[n.id] = n.id === entryNode ? totalTraffic : 0;
+        currentWave[n.id] = n.id === entryNode ? totalTraffic : 0;
+        nodeLoad[n.id] = currentWave[n.id];
     });
 
-    const maxIterations = 50;
-    const epsilon = 0.1;
+    const visitCount = {};
+    nodes.forEach((n) => {
+        visitCount[n.id] = n.id === entryNode && totalTraffic > 0 ? 1 : 0;
+    });
 
-    for (let iter = 0; iter < maxIterations; iter++) {
-        const nextLoad = {};
-        nodes.forEach((n) => {
-            nextLoad[n.id] = n.id === entryNode ? totalTraffic : 0;
-        });
+    const maxSteps = 50;
+    const epsilon = 0.001;
+
+    for (let step = 0; step < maxSteps; step++) {
+        let hasActiveTraffic = false;
+        const nextWave = {};
+        nodes.forEach((n) => { nextWave[n.id] = 0; });
 
         for (const from in graph) {
-            const currentLoad = currentNodeLoad[from] || 0;
-            if (currentLoad <= 0) continue;
+            const loadToForward = currentWave[from] || 0;
+            if (loadToForward <= epsilon) continue;
 
             for (const { to, percentage } of graph[from]) {
                 if (!to || !Number.isFinite(percentage) || percentage <= 0) continue;
-                nextLoad[to] += currentLoad * (percentage / 100);
+                if (visitCount[to] >= maxVisitsPerNode) {
+                    continue; // Loop bounded by TTL / max visits
+                }
+                const forwarded = loadToForward * (percentage / 100);
+                if (forwarded > epsilon) {
+                    nextWave[to] += forwarded;
+                    hasActiveTraffic = true;
+                }
             }
         }
 
-        let maxDiff = 0;
-        nodes.forEach((n) => {
-            maxDiff = Math.max(maxDiff, Math.abs(nextLoad[n.id] - (currentNodeLoad[n.id] || 0)));
-        });
+        if (!hasActiveTraffic) break;
 
-        currentNodeLoad = nextLoad;
-        if (maxDiff < epsilon) break;
-    }
+        for (const id in nextWave) {
+            if (nextWave[id] > epsilon) {
+                visitCount[id] = (visitCount[id] || 0) + 1;
+                nodeLoad[id] = (nodeLoad[id] || 0) + nextWave[id];
+            }
+        }
 
-    for (const id in currentNodeLoad) {
-        nodeLoad[id] = currentNodeLoad[id];
+        currentWave = nextWave;
     }
 
     const nodeSummaries = nodes.map((node) => {

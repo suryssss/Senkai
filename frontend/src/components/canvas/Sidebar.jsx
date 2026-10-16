@@ -2,20 +2,127 @@
 
 import { useState, useEffect } from "react";
 
+const serviceTypes = [
+    { value: "service", label: "Microservice" },
+    { value: "api", label: "API Service" },
+    { value: "worker", label: "Worker" },
+    { value: "serverless", label: "Serverless" },
+    { value: "sql", label: "SQL Database" },
+    { value: "nosql", label: "NoSQL DB" },
+    { value: "redis", label: "Redis" },
+    { value: "objectstore", label: "Object Storage" },
+    { value: "loadbalancer", label: "Load Balancer" },
+    { value: "cdn", label: "CDN" },
+    { value: "queue", label: "Message Queue" },
+    { value: "kafka", label: "Event Bus" },
+    { value: "auth", label: "Auth Service" },
+    { value: "ratelimiter", label: "Rate Limiter" },
+];
+
+const getUtilColor = (util) => {
+    if (util >= 85) return "var(--status-danger)";
+    if (util >= 60) return "var(--status-warning)";
+    return "var(--status-safe)";
+};
+
+const SectionHeader = ({ children }) => (
+    <div style={{ fontSize: "10px", fontWeight: "600", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.8px", marginBottom: "12px" }}>
+        {children}
+    </div>
+);
+
+const Card = ({ children, style = {} }) => (
+    <div style={{ padding: "16px", background: "var(--bg-tertiary)", borderRadius: "10px", border: "1px solid var(--border-subtle)", ...style }}>
+        {children}
+    </div>
+);
+
+const StatusBadge = ({ status }) => {
+    const colors = {
+        safe: { bg: "rgba(16, 185, 129, 0.12)", text: "#10b981" },
+        warning: { bg: "rgba(245, 158, 11, 0.12)", text: "#f59e0b" },
+        danger: { bg: "rgba(239, 68, 68, 0.12)", text: "#ef4444" },
+        low: { bg: "rgba(16, 185, 129, 0.12)", text: "#10b981" },
+        high: { bg: "rgba(239, 68, 68, 0.12)", text: "#ef4444" },
+        critical: { bg: "rgba(220, 38, 38, 0.15)", text: "#dc2626" },
+        crashed: { bg: "rgba(220, 38, 38, 0.15)", text: "#dc2626" },
+    };
+    const c = colors[status] || colors.safe;
+    return (
+        <span style={{ fontSize: "10px", fontWeight: "600", color: c.text, background: c.bg, padding: "4px 8px", borderRadius: "4px", textTransform: "uppercase", letterSpacing: "0.3px" }}>
+            {status}
+        </span>
+    );
+};
+
+const SeverityBadge = ({ severity }) => {
+    const colors = {
+        critical: { bg: "linear-gradient(135deg, rgba(220, 38, 38, 0.15) 0%, rgba(185, 28, 28, 0.1) 100%)", text: "#dc2626", border: "rgba(220, 38, 38, 0.3)" },
+        high: { bg: "linear-gradient(135deg, rgba(239, 68, 68, 0.12) 0%, rgba(220, 38, 38, 0.08) 100%)", text: "#ef4444", border: "rgba(239, 68, 68, 0.25)" },
+        medium: { bg: "linear-gradient(135deg, rgba(245, 158, 11, 0.12) 0%, rgba(217, 119, 6, 0.08) 100%)", text: "#f59e0b", border: "rgba(245, 158, 11, 0.25)" },
+        low: { bg: "linear-gradient(135deg, rgba(16, 185, 129, 0.12) 0%, rgba(5, 150, 105, 0.08) 100%)", text: "#10b981", border: "rgba(16, 185, 129, 0.25)" },
+    };
+    const c = colors[severity] || colors.medium;
+    return (
+        <span style={{ fontSize: "9px", fontWeight: "700", color: c.text, background: c.bg, padding: "4px 8px", borderRadius: "4px", textTransform: "uppercase", letterSpacing: "0.5px", border: `1px solid ${c.border}` }}>
+            {severity}
+        </span>
+    );
+};
+
+const EmptyState = ({ icon, title, subtitle }) => (
+    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "280px", textAlign: "center", padding: "20px" }}>
+        <div style={{ width: "56px", height: "56px", borderRadius: "16px", background: "var(--bg-tertiary)", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: "16px", border: "1px solid var(--border-subtle)" }}>
+            {icon}
+        </div>
+        <p style={{ fontSize: "14px", fontWeight: "600", color: "var(--text-primary)", marginBottom: "6px" }}>{title}</p>
+        <p style={{ fontSize: "12px", color: "var(--text-muted)", lineHeight: 1.5, maxWidth: "200px" }}>{subtitle}</p>
+    </div>
+);
+
+const inputStyle = {
+    width: "100%",
+    padding: "10px 12px",
+    fontSize: "13px",
+    color: "var(--text-primary)",
+    background: "var(--bg-primary)",
+    border: "1px solid var(--border-subtle)",
+    borderRadius: "8px",
+    outline: "none",
+    transition: "border-color 0.2s, box-shadow 0.2s",
+};
+
+const labelStyle = {
+    fontSize: "11px",
+    fontWeight: "500",
+    color: "var(--text-muted)",
+    display: "block",
+    marginBottom: "6px",
+};
+
 const Sidebar = ({ selectedNode, selectedEdge, analysisResults, onUpdateNode, onUpdateEdge, onDeleteNode, onDeleteEdge, onStressTest, onCascadeSimulation, activeSimulation }) => {
     const [nodeForm, setNodeForm] = useState({ label: "", type: "api", capacity: 100, load: 0 });
     const [edgeLatency, setEdgeLatency] = useState(10);
     const [edgePercentage, setEdgePercentage] = useState(100);
     const [activeTab, setActiveTab] = useState("properties");
 
-    useEffect(() => {
+    const [prevSelectedNode, setPrevSelectedNode] = useState(selectedNode);
+    if (selectedNode !== prevSelectedNode) {
+        setPrevSelectedNode(selectedNode);
         if (selectedNode) {
-            setNodeForm({ label: selectedNode.data.label || "", type: selectedNode.data.type || "api", capacity: selectedNode.data.capacity || 100, load: selectedNode.data.load || 0 });
+            setNodeForm({
+                label: selectedNode.data.label || "",
+                type: selectedNode.data.type || "api",
+                capacity: selectedNode.data.capacity || 100,
+                load: selectedNode.data.load || 0,
+            });
             setActiveTab("properties");
         }
-    }, [selectedNode]);
+    }
 
-    useEffect(() => {
+    const [prevSelectedEdge, setPrevSelectedEdge] = useState(selectedEdge);
+    if (selectedEdge !== prevSelectedEdge) {
+        setPrevSelectedEdge(selectedEdge);
         if (selectedEdge) {
             setEdgeLatency(selectedEdge.data?.latency || 10);
             setEdgePercentage(
@@ -25,11 +132,15 @@ const Sidebar = ({ selectedNode, selectedEdge, analysisResults, onUpdateNode, on
             );
             setActiveTab("properties");
         }
-    }, [selectedEdge]);
+    }
 
-    useEffect(() => {
-        if (analysisResults) setActiveTab("results");
-    }, [analysisResults]);
+    const [prevAnalysisResults, setPrevAnalysisResults] = useState(analysisResults);
+    if (analysisResults !== prevAnalysisResults) {
+        setPrevAnalysisResults(analysisResults);
+        if (analysisResults) {
+            setActiveTab("results");
+        }
+    }
 
     const handleNodeUpdate = () => { if (selectedNode) onUpdateNode(selectedNode.id, nodeForm); };
     const handleEdgeUpdate = () => {
@@ -40,23 +151,6 @@ const Sidebar = ({ selectedNode, selectedEdge, analysisResults, onUpdateNode, on
             });
         }
     };
-
-    const serviceTypes = [
-        { value: "service", label: "Microservice" },
-        { value: "api", label: "API Service" },
-        { value: "worker", label: "Worker" },
-        { value: "serverless", label: "Serverless" },
-        { value: "sql", label: "SQL Database" },
-        { value: "nosql", label: "NoSQL DB" },
-        { value: "redis", label: "Redis" },
-        { value: "objectstore", label: "Object Storage" },
-        { value: "loadbalancer", label: "Load Balancer" },
-        { value: "cdn", label: "CDN" },
-        { value: "queue", label: "Message Queue" },
-        { value: "kafka", label: "Event Bus" },
-        { value: "auth", label: "Auth Service" },
-        { value: "ratelimiter", label: "Rate Limiter" },
-    ];
 
     const tabs = [
         {
@@ -81,88 +175,7 @@ const Sidebar = ({ selectedNode, selectedEdge, analysisResults, onUpdateNode, on
         },
     ];
 
-    const getUtilColor = (util) => {
-        if (util >= 85) return "var(--status-danger)";
-        if (util >= 60) return "var(--status-warning)";
-        return "var(--status-safe)";
-    };
-
     const utilization = nodeForm.capacity ? Math.round((nodeForm.load / nodeForm.capacity) * 100) : 0;
-
-    const SectionHeader = ({ children }) => (
-        <div style={{ fontSize: "10px", fontWeight: "600", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.8px", marginBottom: "12px" }}>
-            {children}
-        </div>
-    );
-
-    const Card = ({ children, style = {} }) => (
-        <div style={{ padding: "16px", background: "var(--bg-tertiary)", borderRadius: "10px", border: "1px solid var(--border-subtle)", ...style }}>
-            {children}
-        </div>
-    );
-
-    const StatusBadge = ({ status }) => {
-        const colors = {
-            safe: { bg: "rgba(16, 185, 129, 0.12)", text: "#10b981" },
-            warning: { bg: "rgba(245, 158, 11, 0.12)", text: "#f59e0b" },
-            danger: { bg: "rgba(239, 68, 68, 0.12)", text: "#ef4444" },
-            low: { bg: "rgba(16, 185, 129, 0.12)", text: "#10b981" },
-            high: { bg: "rgba(239, 68, 68, 0.12)", text: "#ef4444" },
-            critical: { bg: "rgba(220, 38, 38, 0.15)", text: "#dc2626" },
-            crashed: { bg: "rgba(220, 38, 38, 0.15)", text: "#dc2626" },
-        };
-        const c = colors[status] || colors.safe;
-        return (
-            <span style={{ fontSize: "10px", fontWeight: "600", color: c.text, background: c.bg, padding: "4px 8px", borderRadius: "4px", textTransform: "uppercase", letterSpacing: "0.3px" }}>
-                {status}
-            </span>
-        );
-    };
-
-    const SeverityBadge = ({ severity }) => {
-        const colors = {
-            critical: { bg: "linear-gradient(135deg, rgba(220, 38, 38, 0.15) 0%, rgba(185, 28, 28, 0.1) 100%)", text: "#dc2626", border: "rgba(220, 38, 38, 0.3)" },
-            high: { bg: "linear-gradient(135deg, rgba(239, 68, 68, 0.12) 0%, rgba(220, 38, 38, 0.08) 100%)", text: "#ef4444", border: "rgba(239, 68, 68, 0.25)" },
-            medium: { bg: "linear-gradient(135deg, rgba(245, 158, 11, 0.12) 0%, rgba(217, 119, 6, 0.08) 100%)", text: "#f59e0b", border: "rgba(245, 158, 11, 0.25)" },
-            low: { bg: "linear-gradient(135deg, rgba(16, 185, 129, 0.12) 0%, rgba(5, 150, 105, 0.08) 100%)", text: "#10b981", border: "rgba(16, 185, 129, 0.25)" },
-        };
-        const c = colors[severity] || colors.medium;
-        return (
-            <span style={{ fontSize: "9px", fontWeight: "700", color: c.text, background: c.bg, padding: "4px 8px", borderRadius: "4px", textTransform: "uppercase", letterSpacing: "0.5px", border: `1px solid ${c.border}` }}>
-                {severity}
-            </span>
-        );
-    };
-
-    const EmptyState = ({ icon, title, subtitle }) => (
-        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "280px", textAlign: "center", padding: "20px" }}>
-            <div style={{ width: "56px", height: "56px", borderRadius: "16px", background: "var(--bg-tertiary)", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: "16px", border: "1px solid var(--border-subtle)" }}>
-                {icon}
-            </div>
-            <p style={{ fontSize: "14px", fontWeight: "600", color: "var(--text-primary)", marginBottom: "6px" }}>{title}</p>
-            <p style={{ fontSize: "12px", color: "var(--text-muted)", lineHeight: 1.5, maxWidth: "200px" }}>{subtitle}</p>
-        </div>
-    );
-
-    const inputStyle = {
-        width: "100%",
-        padding: "10px 12px",
-        fontSize: "13px",
-        color: "var(--text-primary)",
-        background: "var(--bg-primary)",
-        border: "1px solid var(--border-subtle)",
-        borderRadius: "8px",
-        outline: "none",
-        transition: "border-color 0.2s, box-shadow 0.2s",
-    };
-
-    const labelStyle = {
-        fontSize: "11px",
-        fontWeight: "500",
-        color: "var(--text-muted)",
-        display: "block",
-        marginBottom: "6px",
-    };
 
     return (
         <aside style={{ width: "340px", height: "100%", background: "var(--bg-secondary)", display: "flex", flexDirection: "column", borderLeft: "1px solid var(--border-subtle)" }}>
@@ -270,7 +283,7 @@ const Sidebar = ({ selectedNode, selectedEdge, analysisResults, onUpdateNode, on
                                     </div>
                                     <div>
                                         <label style={labelStyle}>Service Type</label>
-                                        <select value={nodeForm.type} onChange={(e) => { setNodeForm({ ...nodeForm, type: e.target.value }); setTimeout(handleNodeUpdate, 0); }} style={{ ...inputStyle, cursor: "pointer" }}>
+                                        <select value={nodeForm.type} onChange={(e) => { const newType = e.target.value; setNodeForm(prev => ({ ...prev, type: newType })); if (selectedNode) onUpdateNode(selectedNode.id, { ...nodeForm, type: newType }); }} style={{ ...inputStyle, cursor: "pointer" }}>
                                             {serviceTypes.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
                                         </select>
                                     </div>

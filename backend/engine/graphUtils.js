@@ -51,12 +51,16 @@ function dfsWithFailed(node, graph, failed, visited) {
     });
 }
 function calculateUtilization(load, capacity) {
-    if (!capacity || capacity <= 0) return 0;
-    return load / capacity;
+    const numCapacity = Number(capacity);
+    const numLoad = Number(load);
+    if (!numCapacity || numCapacity <= 0) {
+        return numLoad > 0 ? Infinity : 0;
+    }
+    return Math.max(0, numLoad) / numCapacity;
 }
 
 function getStatus(utilization) {
-    if (utilization >= 1) return "crashed";
+    if (utilization >= 1 || utilization === Infinity) return "crashed";
     if (utilization >= 0.85) return "danger";
     if (utilization >= 0.6) return "warning";
     return "safe";

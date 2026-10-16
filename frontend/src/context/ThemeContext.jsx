@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useState, useEffect } from "react";
+import { createContext, useContext, useState, useEffect, useSyncExternalStore } from "react";
 
 const ThemeContext = createContext({
     theme: "dark",
@@ -9,15 +9,19 @@ const ThemeContext = createContext({
 
 export const useTheme = () => useContext(ThemeContext);
 
+const emptySubscribe = () => () => {};
+
 export function ThemeProvider({ children }) {
+    const isMounted = useSyncExternalStore(emptySubscribe, () => true, () => false);
     const [theme, setTheme] = useState("dark");
-    const [mounted, setMounted] = useState(false);
 
     useEffect(() => {
-        setMounted(true);
         const savedTheme = localStorage.getItem("structflow-theme") || "dark";
-        setTheme(savedTheme);
-        document.documentElement.setAttribute("data-theme", savedTheme);
+        const raf = requestAnimationFrame(() => {
+            setTheme(savedTheme);
+            document.documentElement.setAttribute("data-theme", savedTheme);
+        });
+        return () => cancelAnimationFrame(raf);
     }, []);
 
     const toggleTheme = () => {
@@ -27,7 +31,7 @@ export function ThemeProvider({ children }) {
         document.documentElement.setAttribute("data-theme", newTheme);
     };
 
-    if (!mounted) {
+    if (!isMounted) {
         return <div style={{ visibility: "hidden" }}>{children}</div>;
     }
 

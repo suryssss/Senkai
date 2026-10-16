@@ -1,11 +1,18 @@
 const Groq = require("groq-sdk");
 
 const GROQ_API_KEY = process.env.GROQ_API_KEY || "";
+const GROQ_MODEL = process.env.GROQ_MODEL || "openai/gpt-oss-120b";
 const AI_ENABLED = process.env.ENABLE_AI !== "false";
 
 let groq = null;
 if (GROQ_API_KEY && GROQ_API_KEY !== "YOUR_GROQ_API_KEY") {
     groq = new Groq({ apiKey: GROQ_API_KEY });
+}
+
+function sanitizeServiceName(name) {
+    if (typeof name !== "string") return "unknown";
+    // Strip control characters, newlines, system overrides, and markdown injection characters
+    return name.replace(/[\r\n\t`#*<>[\]\\]/g, " ").trim().substring(0, 60);
 }
 
 async function getArchitectureAdvice(analysisData) {
@@ -19,31 +26,15 @@ async function getArchitectureAdvice(analysisData) {
 
     try {
         const serviceDetails = analysisData.bottleneckResult?.map(b =>
-            `${b.service}: ${b.utilization} (${b.status})`
+            `${sanitizeServiceName(b.service)}: ${b.utilization} (${b.status})`
         ).join(", ") || "No services";
+
         const spofDetails = analysisData.spofResult?.filter(s => s.risk === "critical" || s.risk === "high")
-            .map(s => s.service).join(", ") || "None";
+            .map(s => sanitizeServiceName(s.service)).join(", ") || "None";
 
-        const prompt = `You are a senior system architect reviewing a microservices architecture. Analyze this detailed risk report and provide 4 specific, actionable improvements.
-
-## Architecture Risk Report
-
-**Overall Risk Score:** ${analysisData.overallRisk?.riskScore || 0}/100 (${analysisData.overallRisk?.overallRisk || "Unknown"})
-
-**Weakest Service:** ${analysisData.weakestPoint?.weakestService || "None"}
-- Utilization: ${analysisData.weakestPoint?.utilization || "N/A"}
-- Remaining Capacity: ${analysisData.weakestPoint?.remainingCapacity || "N/A"}
-- Risk Level: ${analysisData.weakestPoint?.risk || "Unknown"}
-
-**All Services (with utilization):**
-${serviceDetails}
-
-**Single Points of Failure (High Risk):** ${spofDetails}
-
-**Critical Path Latency:** ${analysisData.latencyRiskResult?.criticalPathLatency || 0}ms (${analysisData.latencyRiskResult?.risk || "Unknown"} risk)
-
-## Instructions
-Provide exactly 4 architecture improvement suggestions. Focus on:
+        const systemPrompt = `You are a senior system architect reviewing a microservices architecture.
+Analyze the provided architecture metrics and provide exactly 4 specific, actionable improvements.
+Focus on:
 1. The weakest/most overloaded service specifically
 2. High-utilization services (>80%) that need attention
 3. Single points of failure
@@ -58,12 +49,25 @@ Return ONLY a valid JSON array with exactly 4 objects. Each object must have:
 
 No markdown formatting, no code blocks, no explanation. Just the raw JSON array.`;
 
+        const userContent = `Architecture Risk Report:
+- Overall Risk Score: ${Number(analysisData.overallRisk?.riskScore) || 0}/100 (${sanitizeServiceName(analysisData.overallRisk?.overallRisk || "Unknown")})
+- Weakest Service: ${sanitizeServiceName(analysisData.weakestPoint?.weakestService || "None")}
+  - Utilization: ${analysisData.weakestPoint?.utilization || "N/A"}
+  - Remaining Capacity: ${analysisData.weakestPoint?.remainingCapacity || "N/A"}
+  - Risk Level: ${sanitizeServiceName(analysisData.weakestPoint?.risk || "Unknown")}
+- All Services (with utilization): ${serviceDetails}
+- Single Points of Failure (High Risk): ${spofDetails}
+- Critical Path Latency: ${Number(analysisData.latencyRiskResult?.criticalPathLatency) || 0}ms (${sanitizeServiceName(analysisData.latencyRiskResult?.risk || "Unknown")} risk)`;
+
         const completion = await groq.chat.completions.create({
-            messages: [{ role: "user", content: prompt }],
-            model: "llama-3.3-70b-versatile",
+            messages: [
+                { role: "system", content: systemPrompt },
+                { role: "user", content: userContent }
+            ],
+            model: GROQ_MODEL,
             temperature: 0.5,
             max_tokens: 1500,
-        });
+        }, { timeout: 15000 });
 
         const responseText = completion.choices[0]?.message?.content || "";
 
@@ -91,4 +95,4 @@ No markdown formatting, no code blocks, no explanation. Just the raw JSON array.
     }
 }
 
-module.exports = { getArchitectureAdvice };
+module.exports = { getArchitectureAdvice, sanitizeServiceName };

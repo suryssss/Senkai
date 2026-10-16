@@ -33,21 +33,6 @@ const ServiceNode = memo(({ data, selected }) => {
     const [isAnimating, setIsAnimating] = useState(false);
     const [showLabel, setShowLabel] = useState(false);
 
-    useEffect(() => {
-        if (data.analysisStatus || data.simulationStatus) {
-            setIsAnimating(true);
-            if (data.isWeakest || data.simulationStatus === "crashed") {
-                const labelTimer = setTimeout(() => setShowLabel(true), 300);
-                return () => clearTimeout(labelTimer);
-            }
-            const timer = setTimeout(() => {
-                setIsAnimating(false);
-                setShowLabel(false);
-            }, data.simulationDuration || 4000);
-            return () => clearTimeout(timer);
-        }
-    }, [data.analysisStatus, data.simulationStatus, data.isWeakest, data.simulationDuration]);
-
     const getUtilization = () => {
         if (!data.capacity || data.capacity === 0) return 0;
         const load = data.simulatedLoad ?? data.load;
@@ -67,6 +52,25 @@ const ServiceNode = memo(({ data, selected }) => {
 
     const status = getStatus();
 
+    useEffect(() => {
+        if (data.analysisStatus || data.simulationStatus) {
+            const raf = requestAnimationFrame(() => setIsAnimating(true));
+            let labelTimer = null;
+            if ((data.isWeakest && status !== "safe") || data.simulationStatus === "crashed") {
+                labelTimer = setTimeout(() => setShowLabel(true), 300);
+            }
+            const timer = setTimeout(() => {
+                setIsAnimating(false);
+                setShowLabel(false);
+            }, data.simulationDuration || 4000);
+            return () => {
+                cancelAnimationFrame(raf);
+                if (labelTimer) clearTimeout(labelTimer);
+                clearTimeout(timer);
+            };
+        }
+    }, [data.analysisStatus, data.simulationStatus, data.isWeakest, data.simulationDuration, status]);
+
     const statusColors = {
         safe: { primary: "#10b981", glow: "rgba(16, 185, 129, 0.2)", bg: "rgba(16, 185, 129, 0.05)" },
         warning: { primary: "#f59e0b", glow: "rgba(245, 158, 11, 0.25)", bg: "rgba(245, 158, 11, 0.05)" },
@@ -80,7 +84,7 @@ const ServiceNode = memo(({ data, selected }) => {
     const getAnimationClass = () => {
         if (!isAnimating && !data.isCascadeAffected) return "";
         if (status === "crashed" || data.isCascadeAffected) return "animate-crashed";
-        if (data.isWeakest) return "animate-weakest-glow";
+        if (data.isWeakest && status !== "safe") return "animate-weakest-glow";
         if (status === "danger" || status === "critical") return "animate-danger-pulse";
         if (status === "warning") return "animate-warning-pulse";
         return "";
@@ -107,7 +111,7 @@ const ServiceNode = memo(({ data, selected }) => {
                 position: "relative",
             }}
         >
-            {(data.isWeakest || status === "crashed") && showLabel && (
+            {((data.isWeakest && status !== "safe") || status === "crashed") && showLabel && (
                 <div
                     style={{
                         position: "absolute",
